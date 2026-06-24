@@ -1,0 +1,65 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userExists() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return userExists() && userData().role == 'admin';
+    }
+
+    function isWorkshopStudent() {
+      return userExists()
+        && userData().role == 'workshopStudent'
+        && userData().workshopAccess == true;
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /tutorials/{id} {
+      allow read: if resource.data.access == 'public'
+        || isAdmin()
+        || isWorkshopStudent();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /printUploads/{id} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /studentWorks/{id} {
+      allow create: if true;
+      allow read: if resource.data.status == 'approved' || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /workshopMaterials/{id} {
+      allow read: if isAdmin()
+        || (isWorkshopStudent() && resource.data.workshopId == userData().workshopId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /workshopSubmissions/{id} {
+      allow create: if isWorkshopStudent()
+        && request.resource.data.studentUid == request.auth.uid;
+      allow read: if isAdmin()
+        || (isWorkshopStudent() && resource.data.studentUid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

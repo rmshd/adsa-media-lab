@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ADSA Media & Computer Lab Portal</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anek+Malayalam:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&family=Manjari:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="main">
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="ADSA Digital Hub Home">
+      <span class="brand-mark">AD</span>
+      <span class="brand-text">
+        <strong>ADSA Digital Hub</strong>
+        <small>Media & Computer Lab</small>
+      </span>
+    </a>
+
+    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open menu">☰</button>
+
+    <nav class="main-nav" id="mainNav">
+      <a href="#home">Home</a>
+      <a href="#print">Print Upload</a>
+      <a href="#tutorials">Tutorials</a>
+      <a href="#assets">Assets</a>
+      <a href="#works">Student Works</a>
+      <a href="#workshop">Workshop</a>
+    </nav>
+
+    <a class="admin-top-btn" href="#admin-login">Admin Login</a>
+  </header>
+
+  <main>
+    <section class="hero section reveal" id="home">
+      <div class="hero-shell">
+        <div class="hero-copy reveal reveal-left">
+          <div class="tag-row">
+            <span>#media_lab</span>
+            <span>#computer_lab</span>
+          </div>
+          <p class="eyebrow">Alathurpadi Dars · ADSA Students Association</p>
+          <h1>Learn, create, upload, and print from one friendly portal.</h1>
+          <p class="hero-text">
+            ADSA Media & Computer Lab-ന് വേണ്ടി tutorials, print file sharing, student works, and workshop updates എല്ലാം ഒരു clean digital system-ൽ.
+          </p>
+          <div class="hero-actions">
+            <a class="btn primary" href="#print">Upload for Print</a>
+            <a class="btn soft" href="#tutorials">Watch Tutorials</a>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal reveal-right">
+          <div class="accent-shape shape-one"></div>
+          <div class="accent-shape shape-two"></div>
+          <img src="assets/right side.png" alt="ADSA Media and Computer Lab visual" />
+          <div class="floating-glass-card">
+            <strong>Digital Lab Portal</strong>
+            <span>Tutorials · Printing · Student Works</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section print-section reveal" id="print">
+      <div class="section-panel print-panel">
+        <div class="section-head compact">
+          <p class="eyebrow blue">Printing Desk</p>
+          <h2>Upload files for printing</h2>
+          <p>
+            Student name, batch, and file മാത്രം upload ചെയ്യുക. File ADSA office computer server-ൽ save ആകും.
+            Printing files 12 hours കഴിഞ്ഞാൽ auto delete ചെയ്യും.
+          </p>
+        </div>
+
+        <div class="print-layout">
+          <form class="form-card print-form" id="printUploadForm">
+            <label>Student Name
+              <input class="input" name="studentName" required placeholder="Enter student name" />
+            </label>
+
+            <label>Batch
+              <input class="input" name="batch" placeholder="Enter batch / class" />
+            </label>
+
+            <label>Upload File
+              <input class="input file-input" type="file" name="file" required />
+            </label>
+
+            <div class="progress-wrap hidden" id="printProgressWrap">
+              <div class="progress-bar"><span id="printProgress"></span></div>
+              <small id="printProgressText">0%</small>
+            </div>
+
+            <button class="btn primary full" type="submit">Upload Print File</button>
+            <p class="form-message" id="printMessage"></p>
+          </form>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="section recent-print-section reveal">
+      <div class="section-panel">
+        <div class="section-head compact row-head">
+          <div>
+            <p class="eyebrow blue">Print Queue</p>
+            <h2>Recent Print Files</h2>
+            <p>ADSA office system-ൽ ഈ table open ചെയ്ത് files download ചെയ്ത് print എടുക്കാം.</p>
+          </div>
+          <span class="pill-label">12 hr temporary storage</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>File</th>
+                <th>Uploaded</th>
+                <th>Download</th>
+              </tr>
+            </thead>
+            <tbody id="printFilesTable">
+              <tr><td colspan="4">Loading files...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="software-strip reveal" aria-label="Software categories">
+      <div class="strip-inner">
+        <p>Currently learning</p>
+        <div class="chips">
+          <span>Illustrator</span>
+          <span>Photoshop</span>
+          <span>Premiere Pro</span>
+          <span>InDesign</span>
+          <span>After Effects</span>
+          <span>Blender</span>
+          <span>Coding</span>
+          <span>Word</span>
+          <span>Excel</span>
+          <span>PowerPoint</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section reveal" id="works">
+      <div class="student-works-board">
+        <div class="section-head light-head">
+          <p class="eyebrow white">Creative Archive</p>
+          <h2>Student Works</h2>
+          <p>Students upload ചെയ്യുന്ന posters, edits, renders, and design works ഇവിടെ showcase ചെയ്യാം. Hover ചെയ്താൽ creator name കാണും.</p>
+        </div>
+
+        <div class="works-showcase" id="worksGallery">
+          <article class="work-showcase-card reveal-card big">
+            <div class="work-thumb gradient-one">Poster</div>
+            <div class="work-overlay">
+              <strong>Creative Poster</strong>
+              <span>by Student Name</span>
+            </div>
+          </article>
+          <article class="work-showcase-card reveal-card small up">
+            <div class="work-thumb gradient-two">Logo</div>
+            <div class="work-overlay">
+              <strong>Logo Concept</strong>
+              <span>by Student Name</span>
+            </div>
+          </article>
+          <article class="work-showcase-card reveal-card tall">
+            <div class="work-thumb gradient-three">Render</div>
+            <div class="work-overlay">
+              <strong>Blender Model</strong>
+              <span>by Student Name</span>
+            </div>
+          </article>
+          <article class="work-showcase-card reveal-card small down">
+            <div class="work-thumb gradient-four">Edit</div>
+            <div class="work-overlay">
+              <strong>Video Edit</strong>
+              <span>by Student Name</span>
+            </div>
+          </article>
+          <article class="work-showcase-card reveal-card wide">
+            <div class="work-thumb gradient-five">UI</div>
+            <div class="work-overlay">
+              <strong>Website UI</strong>
+              <span>by Student Name</span>
+            </div>
+          </article>
+        </div>
+
+        <div class="works-footer">
+          <a class="btn white-btn" href="#workUploadArea">Upload Work</a>
+          <button class="btn blue-btn" id="seeAllWorksBtn" type="button">See All Works</button>
+        </div>
+      </div>
+
+      <div class="work-upload-panel reveal" id="workUploadArea">
+        <div class="section-head compact">
+          <p class="eyebrow blue">Submit Work</p>
+          <h2>Upload your creative work</h2>
+          <p>Student works later local server-ലെ <strong>student-works</strong> folder-ലേക്ക് connect ചെയ്യാം.</p>
+        </div>
+
+        <form class="form-card" id="workUploadForm">
+          <label>Student Name
+            <input class="input" name="studentName" required placeholder="Student name" />
+          </label>
+
+          <label>Work Title
+            <input class="input" name="title" required placeholder="Example: Illustrator Poster Design" />
+          </label>
+
+          <div class="form-row">
+            <label>Software Used
+              <select class="input" name="software">
+                <option>Illustrator</option>
+                <option>Photoshop</option>
+                <option>Premiere Pro</option>
+                <option>InDesign</option>
+                <option>After Effects</option>
+                <option>Blender</option>
+                <option>Coding</option>
+                <option>Office Apps</option>
+                <option>Other</option>
+              </select>
+            </label>
+
+            <label>Work Type
+              <select class="input" name="workType">
+                <option>Poster</option>
+                <option>Logo</option>
+                <option>Video Editing</option>
+                <option>Motion Graphics</option>
+                <option>Blender Render</option>
+                <option>Coding Project</option>
+                <option>Document</option>
+                <option>Presentation</option>
+                <option>Other</option>
+              </select>
+            </label>
+          </div>
+
+          <label>Upload Work File
+            <input class="input file-input" type="file" name="file" required />
+          </label>
+
+          <div class="progress-wrap hidden" id="workProgressWrap">
+            <div class="progress-bar"><span id="workProgress"></span></div>
+            <small id="workProgressText">0%</small>
+          </div>
+
+          <button class="btn primary full" type="submit">Upload Work</button>
+          <p class="form-message" id="workMessage"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="section reveal" id="tutorials">
+      <div class="tutorials-panel">
+        <div class="section-head row-head">
+          <div>
+            <p class="eyebrow blue">Learning Library</p>
+            <h2>Common Tutorials</h2>
+            <p>Admin panel വഴി YouTube links add ചെയ്യുമ്പോൾ software category അനുസരിച്ച് thumbnails സഹിതം tutorials ഇവിടെ വരും.</p>
+          </div>
+          <a class="round-link" href="#admin-login">+ Add Tutorial</a>
+        </div>
+
+        <div class="toolbar">
+          <select id="tutorialCategoryFilter" class="input small-input">
+            <option value="all">All Categories</option>
+            <option value="Illustrator">Illustrator</option>
+            <option value="Photoshop">Photoshop</option>
+            <option value="Premiere Pro">Premiere Pro</option>
+            <option value="InDesign">InDesign</option>
+            <option value="After Effects">After Effects</option>
+            <option value="Blender">Blender</option>
+            <option value="Coding">Coding</option>
+            <option value="Office Apps">Office Apps</option>
+          </select>
+
+          <input id="tutorialSearch" class="input" type="search" placeholder="Search tutorial..." />
+        </div>
+
+        <div class="tutorial-card-grid" id="publicTutorials">
+          <article class="tutorial-card demo-card reveal-card">
+            <div class="tutorial-thumb blue-thumb">Ai</div>
+            <div class="tutorial-body">
+              <div class="tag-pair"><span>Beginner</span><span>Malayalam</span></div>
+              <h3>Illustrator basics</h3>
+              <p>Admin add ചെയ്യുന്ന YouTube links ഇവിടെ thumbnail സഹിതം കാണിക്കും.</p>
+              <a href="#admin-login" class="btn mini blue-btn">Add Link</a>
+            </div>
+          </article>
+          <article class="tutorial-card demo-card reveal-card">
+            <div class="tutorial-thumb lime-thumb">Ps</div>
+            <div class="tutorial-body">
+              <div class="tag-pair"><span>Design</span><span>Public</span></div>
+              <h3>Photoshop editing</h3>
+              <p>Software category, level, language എന്നിവ filter ചെയ്യാം.</p>
+              <a href="#admin-login" class="btn mini blue-btn">Add Link</a>
+            </div>
+          </article>
+          <article class="tutorial-card demo-card reveal-card">
+            <div class="tutorial-thumb peach-thumb">Pr</div>
+            <div class="tutorial-body">
+              <div class="tag-pair"><span>Video</span><span>Public</span></div>
+              <h3>Premiere Pro lessons</h3>
+              <p>YouTube video thumbnail auto show ചെയ്യാവുന്ന system next.</p>
+              <a href="#admin-login" class="btn mini blue-btn">Add Link</a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="section reveal" id="assets">
+      <div class="assets-panel">
+        <div class="section-head row-head">
+          <div>
+            <p class="eyebrow blue">Designer Resources</p>
+            <h2>Assets Library</h2>
+            <p>Admin add ചെയ്യുന്ന model posters, background PNGs, fonts, and useful design resources ഇവിടെ students-ന് download/open ചെയ്യാം.</p>
+          </div>
+          <a class="round-link" href="#admin-login">+ Add Assets</a>
+        </div>
+
+        <div class="toolbar asset-toolbar">
+          <select id="assetCategoryFilter" class="input small-input">
+            <option value="all">All Assets</option>
+            <option value="Model Posters">Model Posters</option>
+            <option value="Background PNGs">Background PNGs</option>
+            <option value="Fonts">Fonts</option>
+            <option value="PNG Elements">PNG Elements</option>
+            <option value="Practice Files">Practice Files</option>
+            <option value="Design Models">Design Models</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <input id="assetSearch" class="input" type="search" placeholder="Search assets, fonts, backgrounds..." />
+        </div>
+
+        <div class="asset-grid" id="assetGrid">
+          <article class="asset-card demo-card reveal-card">
+            <div class="asset-icon">Aa</div>
+            <div class="asset-body">
+              <span class="asset-type">Fonts</span>
+              <h3>Design fonts</h3>
+              <p>Admin upload ചെയ്യുന്ന fonts ഇവിടെ show ചെയ്യും.</p>
+            </div>
+          </article>
+          <article class="asset-card demo-card reveal-card">
+            <div class="asset-icon png-icon">PNG</div>
+            <div class="asset-body">
+              <span class="asset-type">Background PNGs</span>
+              <h3>Backgrounds & PNGs</h3>
+              <p>Designers-ന് useful elements category-wise കിട്ടും.</p>
+            </div>
+          </article>
+          <article class="asset-card demo-card reveal-card">
+            <div class="asset-icon model-icon">PSD</div>
+            <div class="asset-body">
+              <span class="asset-type">Model Posters</span>
+              <h3>Poster models</h3>
+              <p>Practice ചെയ്യാനുള്ള model posters admin add ചെയ്യാം.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section workshop-section reveal" id="workshop">
+      <div class="workshop-card">
+        <div>
+          <p class="eyebrow blue">Protected Workshop</p>
+          <h2>ADSA Designers Workshop</h2>
+          <p>
+            Workshop portal separate secure site/page ആയി build ചെയ്യാം. അതിൽ profile section, advanced tutorials,
+            assets, workshop submissions, and trainer feedback add ചെയ്യാം.
+          </p>
+        </div>
+        <button class="btn soft" id="workshopComingSoonBtn" type="button">Workshop Portal Coming Soon</button>
+      </div>
+    </section>
+
+    <section class="section admin-login-section reveal" id="admin-login">
+      <div class="section-panel admin-panel-shell admin-open-panel">
+        <div class="section-head compact">
+          <p class="eyebrow blue">Management</p>
+          <h2>Admin Login</h2>
+          <p>Admin username/password enter ചെയ്താൽ admin panel ഒരു പുതിയ tab-ൽ open ചെയ്യും. Main website-ൽ admin panel show ആകില്ല.</p>
+        </div>
+
+        <div class="admin-open-layout">
+          <form class="form-card admin-login" id="adminLoginForm">
+            <label>Admin Username
+              <input class="input" type="text" name="username" placeholder="admin" autocomplete="username" />
+            </label>
+
+            <label>Password
+              <input class="input" type="password" name="password" placeholder="Password" autocomplete="current-password" />
+            </label>
+
+            <button class="btn primary full" type="submit">Login & Open Admin Panel</button>
+            <p class="form-message" id="adminLoginMessage"></p>
+          </form>
+
+          <div class="admin-open-note">
+            <span class="admin-note-icon">↗</span>
+            <h3>Separate admin workspace</h3>
+            <p>Print files, student works, featured works, and tutorial links manage ചെയ്യുന്നത് new tab-ൽ ആയിരിക്കും.</p>
+            <small>Password website code-ൽ കാണില്ല; server-side check ആണ്.</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="works-modal hidden" id="worksModal" role="dialog" aria-modal="true" aria-labelledby="worksModalTitle" aria-hidden="true">
+    <button class="works-modal-backdrop" type="button" data-close-works-modal aria-label="Close all works popup"></button>
+    <div class="works-modal-card">
+      <div class="works-modal-head">
+        <div>
+          <p class="eyebrow blue">Creative Gallery</p>
+          <h3 id="worksModalTitle">All Student Works</h3>
+          <p id="worksModalCount">Uploaded works will appear here as cards.</p>
+        </div>
+        <button class="modal-close" id="closeWorksModal" type="button" aria-label="Close popup">×</button>
+      </div>
+      <div class="works-modal-grid" id="allWorksGrid">
+        <div class="works-loading">Loading works...</div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="work-viewer-modal hidden" id="workViewerModal" role="dialog" aria-modal="true" aria-labelledby="workViewerTitle" aria-hidden="true">
+    <button class="work-viewer-backdrop" type="button" data-close-work-viewer aria-label="Close work preview"></button>
+    <div class="work-viewer-card">
+      <div class="work-viewer-head">
+        <div>
+          <p class="eyebrow blue">Work Preview</p>
+          <h3 id="workViewerTitle">Student Work</h3>
+          <p id="workViewerMeta">Preview will open here.</p>
+        </div>
+        <button class="modal-close" id="closeWorkViewer" type="button" aria-label="Close preview">×</button>
+      </div>
+      <div class="work-viewer-body" id="workViewerBody">
+        <div class="works-loading">Select a work to preview.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <footer class="site-footer">
+    <p>© ADSA Media & Computer Lab · Digital Learning & File Sharing Portal</p>
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const revealItems = document.querySelectorAll(".reveal, .reveal-card");
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.16, rootMargin: "0px 0px -60px 0px" });
+
+      revealItems.forEach((item, index) => {
+        item.style.setProperty("--reveal-delay", `${Math.min(index * 45, 420)}ms`);
+        observer.observe(item);
+      });
+    });
+  </script>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

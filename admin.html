@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ADSA Admin Panel</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anek+Malayalam:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&family=Manjari:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="admin" class="admin-page-body">
+  <header class="site-header admin-site-header">
+    <a class="brand" href="index.html" aria-label="Back to ADSA Digital Hub">
+      <span class="brand-mark">AD</span>
+      <span class="brand-text">
+        <strong>ADSA Admin Panel</strong>
+        <small>Portal Management</small>
+      </span>
+    </a>
+
+    <nav class="main-nav admin-nav-visible">
+      <a href="index.html">Main Site</a>
+      <a href="#admin">Dashboard</a>
+      <a href="#tutorial-admin">Tutorials</a>
+      <a href="#asset-admin">Assets</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section admin-section reveal" id="admin">
+      <div class="section-panel admin-panel-shell">
+        <div class="section-head compact">
+          <p class="eyebrow blue">Management</p>
+          <h2>Admin Panel</h2>
+          <p>Admin login ചെയ്താൽ print files, student works, and tutorial links manage ചെയ്യാം. Password website code-ൽ കാണില്ല; server-side check ആണ്.</p>
+        </div>
+
+        <form class="form-card admin-login" id="adminLoginForm">
+          <label>Admin Username
+            <input class="input" type="text" name="username" placeholder="admin" autocomplete="username" />
+          </label>
+
+          <label>Password
+            <input class="input" type="password" name="password" placeholder="Password" autocomplete="current-password" />
+          </label>
+
+          <button class="btn primary full" type="submit">Admin Login</button>
+          <p class="form-message" id="adminLoginMessage"></p>
+        </form>
+
+        <div class="dashboard hidden" id="adminDashboard">
+          <div class="dashboard-head">
+            <div>
+              <p class="eyebrow blue">Admin Dashboard</p>
+              <h3>ADSA Portal Control</h3>
+            </div>
+            <button class="btn soft" id="logoutAdminBtn" type="button">Logout</button>
+          </div>
+
+          <div class="admin-stats-grid" id="adminStatsGrid">
+            <div class="admin-stat-card">
+              <span>Today’s Print Uploads</span>
+              <strong id="statTodayPrints">0</strong>
+            </div>
+            <div class="admin-stat-card">
+              <span>Total Student Works</span>
+              <strong id="statStudentWorks">0</strong>
+            </div>
+            <div class="admin-stat-card">
+              <span>Total Tutorials</span>
+              <strong id="statTutorials">0</strong>
+            </div>
+            <div class="admin-stat-card">
+              <span>Total Assets</span>
+              <strong id="statAssets">0</strong>
+            </div>
+            <div class="admin-stat-card">
+              <span>Upload Storage Used</span>
+              <strong id="statStorageUsed">0 MB</strong>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <form class="panel" id="addTutorialForm"><span id="tutorial-admin" class="anchor-target"></span>
+              <h4>Add Tutorial Link</h4>
+              <label>Title
+                <input class="input" name="title" required placeholder="Tutorial title" />
+              </label>
+
+              <label>YouTube Link
+                <input class="input" name="youtubeLink" required placeholder="Paste YouTube link" />
+              </label>
+
+              <div class="form-row">
+                <label>Category
+                  <select class="input" name="category">
+                    <option>Illustrator</option>
+                    <option>Photoshop</option>
+                    <option>Premiere Pro</option>
+                    <option>InDesign</option>
+                    <option>After Effects</option>
+                    <option>Blender</option>
+                    <option>Coding</option>
+                    <option>Word</option>
+                    <option>Excel</option>
+                    <option>PowerPoint</option>
+                    <option>Office Apps</option>
+                  </select>
+                </label>
+
+                <label>Level
+                  <select class="input" name="level">
+                    <option>Beginner</option>
+                    <option>Intermediate</option>
+                    <option>Advanced</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>Language
+                <input class="input" name="language" value="Malayalam" />
+              </label>
+
+              <label>Access
+                <select class="input" name="access">
+                  <option value="public">Common Public Tutorial</option>
+                  <option value="workshop">Workshop Advanced Tutorial</option>
+                </select>
+              </label>
+
+              <label>Workshop ID
+                <input class="input" name="workshopId" value="illustrator-2026" />
+              </label>
+
+              <button class="btn primary full" type="submit">Add Tutorial</button>
+              <p class="form-message" id="tutorialAdminMessage"></p>
+            </form>
+
+            <div class="panel">
+              <h4>Tutorial Links</h4>
+              <div id="tutorialAdminList" class="list-box">
+                <div class="list-item">Admin login ചെയ്താൽ tutorials ഇവിടെ കാണും.</div>
+              </div>
+            </div>
+
+
+            <form class="panel" id="addAssetForm"><span id="asset-admin" class="anchor-target"></span>
+              <h4>Add Design Asset</h4>
+              <label>Asset Title
+                <input class="input" name="title" required placeholder="Example: Wedding poster model" />
+              </label>
+
+              <div class="form-row">
+                <label>Category
+                  <select class="input" name="category">
+                    <option>Model Posters</option>
+                    <option>Background PNGs</option>
+                    <option>Fonts</option>
+                    <option>PNG Elements</option>
+                    <option>Practice Files</option>
+                    <option>Design Models</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+
+                <label>File
+                  <input class="input file-input" type="file" name="file" />
+                </label>
+              </div>
+
+              <label>External Link <small>(optional)</small>
+                <input class="input" name="externalLink" placeholder="Google Drive / website link if no file" />
+              </label>
+
+              <label>Description
+                <textarea class="input" name="description" rows="3" placeholder="Short note about this asset"></textarea>
+              </label>
+
+              <div class="progress-wrap hidden" id="assetProgressWrap">
+                <div class="progress-bar"><span id="assetProgress"></span></div>
+                <small id="assetProgressText">0%</small>
+              </div>
+
+              <button class="btn primary full" type="submit">Add Asset</button>
+              <p class="form-message" id="assetAdminMessage"></p>
+            </form>
+
+            <div class="panel">
+              <div class="admin-panel-actions">
+                <h4>Asset Library</h4>
+                <a class="btn mini blue-btn" data-fonts-zip-link href="#">Download All Fonts</a>
+              </div>
+              <div id="assetAdminList" class="list-box">
+                <div class="list-item">Admin login ചെയ്താൽ assets ഇവിടെ manage ചെയ്യാം.</div>
+              </div>
+            </div>
+
+            <div class="panel wide-panel">
+              <h4>Print Files Management</h4>
+              <div id="printAdminList" class="list-box">
+                <div class="list-item">Admin login ചെയ്താൽ print files ഇവിടെ manage ചെയ്യാം.</div>
+              </div>
+            </div>
+
+            <div class="panel wide-panel">
+              <h4>Student Works Management</h4>
+              <div id="studentWorksAdminList" class="list-box">
+                <div class="list-item">Admin login ചെയ്താൽ student works manage ചെയ്യാം.</div>
+              </div>
+            </div>
+          </div>          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="work-viewer-modal hidden" id="workViewerModal" role="dialog" aria-modal="true" aria-labelledby="workViewerTitle" aria-hidden="true">
+    <button class="work-viewer-backdrop" type="button" data-close-work-viewer aria-label="Close work preview"></button>
+    <div class="work-viewer-card">
+      <div class="work-viewer-head">
+        <div>
+          <p class="eyebrow blue">Work Preview</p>
+          <h3 id="workViewerTitle">Student Work</h3>
+          <p id="workViewerMeta">Preview will open here.</p>
+        </div>
+        <button class="modal-close" id="closeWorkViewer" type="button" aria-label="Close preview">×</button>
+      </div>
+      <div class="work-viewer-body" id="workViewerBody">
+        <div class="works-loading">Select a work to preview.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>© ADSA Media & Computer Lab · Admin Panel</p>
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const revealItems = document.querySelectorAll(".reveal, .reveal-card");
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.16, rootMargin: "0px 0px -60px 0px" });
+      revealItems.forEach((item) => observer.observe(item));
+    });
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
