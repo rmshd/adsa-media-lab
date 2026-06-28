@@ -49,6 +49,7 @@ function setProgress(wrapSelector, barSelector, textSelector, percent) {
   if (wrap) wrap.classList.remove("hidden");
   if (bar) bar.style.width = `${percent}%`;
   if (text) text.textContent = `${percent}%`;
+  updateUploadWidgetFromProgress(wrapSelector, percent);
 }
 
 function hideProgress(wrapSelector, barSelector, textSelector) {
@@ -58,6 +59,9 @@ function hideProgress(wrapSelector, barSelector, textSelector) {
   if (wrap) wrap.classList.add("hidden");
   if (bar) bar.style.width = "0%";
   if (text) text.textContent = "0%";
+  const form = $(progressFormMap[wrapSelector]);
+  const input = form?.querySelector('input[type="file"]');
+  if (input) updateUploadWidgetSelection(input);
 }
 
 function uploadWithProgress({ url, formData, onProgress, headers = {} }) {
@@ -91,6 +95,190 @@ function uploadWithProgress({ url, formData, onProgress, headers = {} }) {
     xhr.timeout = 60 * 60 * 1000;
     xhr.send(formData);
   });
+}
+
+
+
+// -------------------- MODERN FILE UPLOAD UI --------------------
+const uploadWidgetMap = new WeakMap();
+const progressFormMap = {
+  "#printProgressWrap": "#printUploadForm",
+  "#workProgressWrap": "#workUploadForm",
+  "#assetProgressWrap": "#addAssetForm"
+};
+
+function getUploadTitle(input) {
+  const form = input.closest("form");
+  if (form?.id === "printUploadForm") return "Upload Print File";
+  if (form?.id === "workUploadForm") return "Upload Creative Work";
+  if (form?.id === "addAssetForm") return "Upload Asset File";
+  return "Upload File";
+}
+
+function getUploadHint(input) {
+  const form = input.closest("form");
+  if (form?.id === "printUploadForm") return "PDF, Word, image, or any printable file";
+  if (form?.id === "workUploadForm") return "Image, video, poster, design, or project file";
+  if (form?.id === "addAssetForm") return "Fonts, PNGs, posters, ZIPs, PDFs, or design resources";
+  return "Choose file or drag and drop here";
+}
+
+function getUploadWidgetForForm(form) {
+  if (!form) return null;
+  const input = form.querySelector('input[type="file"]');
+  return input ? uploadWidgetMap.get(input) : null;
+}
+
+function setUploadWidgetState(widget, state = "idle", percent = 0, note = "") {
+  if (!widget) return;
+  const progress = Math.max(0, Math.min(100, Number(percent) || 0));
+  const title = widget.querySelector(".upload-ui-title");
+  const hint = widget.querySelector(".upload-ui-hint");
+  const bar = widget.querySelector(".upload-ui-progress span");
+  const percentText = widget.querySelector(".upload-ui-percent");
+
+  widget.classList.remove("is-idle", "is-selected", "is-uploading", "is-success", "is-error", "is-dragover");
+  widget.classList.add(`is-${state}`);
+
+  if (bar) bar.style.width = `${progress}%`;
+  if (percentText) percentText.textContent = `${progress}%`;
+
+  if (state === "uploading") {
+    if (title) title.textContent = "Uploading...";
+    if (hint) hint.textContent = note || "Please wait while the file is being uploaded";
+    return;
+  }
+
+  if (state === "success") {
+    if (title) title.textContent = "Upload Completed";
+    if (hint) hint.textContent = note || "File saved successfully";
+    return;
+  }
+
+  if (state === "error") {
+    if (title) title.textContent = "Upload Failed";
+    if (hint) hint.textContent = note || "Please check server / internet and try again";
+  }
+}
+
+function updateUploadWidgetSelection(input) {
+  const widget = uploadWidgetMap.get(input);
+  if (!widget) return;
+
+  const file = input.files?.[0];
+  const title = widget.querySelector(".upload-ui-title");
+  const hint = widget.querySelector(".upload-ui-hint");
+  const name = widget.querySelector(".upload-ui-file-name");
+  const size = widget.querySelector(".upload-ui-file-size");
+  const progress = widget.querySelector(".upload-ui-progress span");
+  const percentText = widget.querySelector(".upload-ui-percent");
+
+  widget.classList.remove("is-uploading", "is-success", "is-error", "is-dragover");
+
+  if (file) {
+    widget.classList.add("is-selected");
+    widget.classList.remove("is-idle");
+    if (title) title.textContent = "File Selected";
+    if (hint) hint.textContent = "Ready to upload";
+    if (name) name.textContent = file.name;
+    if (size) size.textContent = formatSize(file.size);
+  } else {
+    widget.classList.add("is-idle");
+    widget.classList.remove("is-selected");
+    if (title) title.textContent = getUploadTitle(input);
+    if (hint) hint.textContent = getUploadHint(input);
+    if (name) name.textContent = "No file selected";
+    if (size) size.textContent = "Click or drag file";
+  }
+
+  if (progress) progress.style.width = "0%";
+  if (percentText) percentText.textContent = "0%";
+}
+
+function setupUploadWidgets() {
+  $$('input[type="file"]').forEach((input) => {
+    if (uploadWidgetMap.has(input)) return;
+
+    input.classList.add("native-file-hidden");
+
+    const widget = document.createElement("div");
+    widget.className = "upload-dropzone is-idle";
+    widget.setAttribute("role", "button");
+    widget.setAttribute("tabindex", "0");
+    widget.innerHTML = `
+      <div class="upload-ui-icon" aria-hidden="true">
+        <span>↑</span>
+        <i></i>
+      </div>
+      <div class="upload-ui-copy">
+        <strong class="upload-ui-title">${escapeHTML(getUploadTitle(input))}</strong>
+        <small class="upload-ui-hint">${escapeHTML(getUploadHint(input))}</small>
+      </div>
+      <div class="upload-ui-file">
+        <span class="upload-ui-file-name">No file selected</span>
+        <small class="upload-ui-file-size">Click or drag file</small>
+      </div>
+      <div class="upload-ui-progress" aria-hidden="true"><span></span></div>
+      <small class="upload-ui-percent">0%</small>
+    `;
+
+    input.insertAdjacentElement("afterend", widget);
+    uploadWidgetMap.set(input, widget);
+
+    widget.addEventListener("click", (event) => {
+      event.preventDefault();
+      input.click();
+    });
+
+    widget.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        input.click();
+      }
+    });
+
+    ["dragenter", "dragover"].forEach((type) => {
+      widget.addEventListener(type, (event) => {
+        event.preventDefault();
+        widget.classList.add("is-dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((type) => {
+      widget.addEventListener(type, (event) => {
+        event.preventDefault();
+        widget.classList.remove("is-dragover");
+      });
+    });
+
+    widget.addEventListener("drop", (event) => {
+      const files = event.dataTransfer?.files;
+      if (!files || !files.length) return;
+      try {
+        input.files = files;
+      } catch (error) {
+        console.warn("Drag file assign failed", error);
+      }
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    input.addEventListener("change", () => updateUploadWidgetSelection(input));
+    input.closest("form")?.addEventListener("reset", () => setTimeout(() => updateUploadWidgetSelection(input), 0));
+    updateUploadWidgetSelection(input);
+  });
+}
+
+function updateUploadWidgetFromProgress(wrapSelector, percent) {
+  const form = $(progressFormMap[wrapSelector]);
+  const widget = getUploadWidgetForForm(form);
+  if (!widget) return;
+  const state = Number(percent) >= 100 ? "success" : "uploading";
+  setUploadWidgetState(widget, state, percent, Number(percent) >= 100 ? "Upload completed successfully" : "Smooth upload animation running");
+}
+
+function markUploadWidgetError(form, message = "Upload failed") {
+  const widget = getUploadWidgetForForm(form);
+  if (widget) setUploadWidgetState(widget, "error", 0, message);
 }
 
 // Mobile menu
@@ -144,6 +332,7 @@ async function uploadPrintFile(event) {
     setTimeout(() => hideProgress("#printProgressWrap", "#printProgress", "#printProgressText"), 1500);
   } catch (error) {
     console.error(error);
+    markUploadWidgetError(form, "Upload failed. Try again.");
     setMessage("#printMessage", `Upload failed: ${error.message}`, true);
   }
 }
@@ -241,6 +430,7 @@ async function uploadStudentWork(event) {
     setTimeout(() => hideProgress("#workProgressWrap", "#workProgress", "#workProgressText"), 1500);
   } catch (error) {
     console.error(error);
+    markUploadWidgetError(form, "Work upload failed. Try again.");
     setMessage("#workMessage", `Work upload failed: ${error.message}`, true);
   }
 }
@@ -1227,6 +1417,7 @@ async function addAsset(event) {
     setTimeout(() => hideProgress("#assetProgressWrap", "#assetProgress", "#assetProgressText"), 1200);
   } catch (error) {
     console.error(error);
+    markUploadWidgetError(form, "Asset upload failed. Try again.");
     setMessage("#assetAdminMessage", error.message || "Asset add failed", true);
   }
 }
@@ -1321,6 +1512,8 @@ async function handleAdminActions(event) {
 
 // Connect after page loads
 window.addEventListener("DOMContentLoaded", () => {
+  setupUploadWidgets();
+
   const printForm = $("#printUploadForm");
   if (printForm) printForm.addEventListener("submit", uploadPrintFile);
 
