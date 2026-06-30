@@ -104,7 +104,8 @@ const uploadWidgetMap = new WeakMap();
 const progressFormMap = {
   "#printProgressWrap": "#printUploadForm",
   "#workProgressWrap": "#workUploadForm",
-  "#assetProgressWrap": "#addAssetForm"
+  "#assetProgressWrap": "#addAssetForm",
+  "#workshopProgressWrap": "#workshopSubmissionForm"
 };
 
 function getUploadTitle(input) {
@@ -112,6 +113,7 @@ function getUploadTitle(input) {
   if (form?.id === "printUploadForm") return "Upload Print File";
   if (form?.id === "workUploadForm") return "Upload Creative Work";
   if (form?.id === "addAssetForm") return "Upload Asset File";
+  if (form?.id === "workshopSubmissionForm") return "Upload Workshop Submission";
   return "Upload File";
 }
 
@@ -120,6 +122,7 @@ function getUploadHint(input) {
   if (form?.id === "printUploadForm") return "PDF, Word, image, or any printable file";
   if (form?.id === "workUploadForm") return "Image, video, poster, design, or project file";
   if (form?.id === "addAssetForm") return "Fonts, PNGs, posters, ZIPs, PDFs, or design resources";
+  if (form?.id === "workshopSubmissionForm") return "Poster, image, video, PDF, ZIP, or project file";
   return "Choose file or drag and drop here";
 }
 
@@ -1247,7 +1250,12 @@ async function loadAdminPanelData() {
     loadAdminPrintFiles(),
     loadAdminStudentWorks(),
     loadAdminTutorials(),
-    loadAdminAssets()
+    loadAdminAssets(),
+    loadAdminWorkshopStudents(),
+    loadAdminWorkshopAssignments(),
+    loadAdminWorkshopSubmissions(),
+    loadAdminAttendanceClasses(),
+    loadAdminCertificates()
   ]);
 }
 
@@ -1259,6 +1267,12 @@ async function loadAdminDashboardStats() {
     if ($("#statStudentWorks")) $("#statStudentWorks").textContent = s.totalStudentWorks ?? 0;
     if ($("#statTutorials")) $("#statTutorials").textContent = s.totalTutorials ?? 0;
     if ($("#statAssets")) $("#statAssets").textContent = s.totalAssets ?? 0;
+    if ($("#statWorkshopStudents")) $("#statWorkshopStudents").textContent = s.totalWorkshopStudents ?? 0;
+    if ($("#statWorkshopSubmissions")) $("#statWorkshopSubmissions").textContent = s.totalWorkshopSubmissions ?? 0;
+    if ($("#statUnreviewedSubmissions")) $("#statUnreviewedSubmissions").textContent = s.unreviewedWorkshopSubmissions ?? 0;
+    if ($("#statAssignments")) $("#statAssignments").textContent = s.activeAssignments ?? 0;
+    if ($("#statAttendanceClasses")) $("#statAttendanceClasses").textContent = s.attendanceClasses ?? 0;
+    if ($("#statCertificates")) $("#statCertificates").textContent = s.certificateEligible ?? 0;
     if ($("#statStorageUsed")) $("#statStorageUsed").textContent = formatSize(s.totalUploadStorageBytes || 0);
   } catch (error) {
     console.error(error);
@@ -1510,6 +1524,763 @@ async function handleAdminActions(event) {
   }
 }
 
+
+
+// -------------------- WORKSHOP PORTAL --------------------
+const WORKSHOP_TOKEN_KEY = "adsa_workshop_token";
+let workshopDashboardCache = null;
+
+function isWorkshopPage() {
+  return document.body?.dataset?.page === "workshop";
+}
+
+function getWorkshopToken() {
+  return localStorage.getItem(WORKSHOP_TOKEN_KEY) || "";
+}
+
+function setWorkshopToken(token) {
+  if (token) localStorage.setItem(WORKSHOP_TOKEN_KEY, token);
+  else localStorage.removeItem(WORKSHOP_TOKEN_KEY);
+}
+
+async function workshopFetch(path, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${getWorkshopToken()}`
+  };
+  const response = await fetch(`${PRINT_API_BASE}${path}`, { ...options, headers });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) throw new Error(result.message || `Workshop request failed (${response.status})`);
+  return result;
+}
+
+function showWorkshopDashboard(show) {
+  $("#workshop-dashboard")?.classList.toggle("hidden", !show);
+  $("#workshopLoginForm")?.classList.toggle("hidden", show);
+  $(".workshop-login-shell")?.classList.toggle("logged-in", show);
+}
+
+function statusLabel(status = "submitted") {
+  const map = {
+    submitted: "Submitted",
+    reviewed: "Reviewed",
+    "need-correction": "Need Correction",
+    approved: "Approved",
+    present: "Present",
+    absent: "Absent",
+    late: "Late",
+    excused: "Excused",
+    "not-marked": "Not Marked"
+  };
+  return map[status] || status;
+}
+
+async function workshopLogin(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const studentId = String(formData.get("studentId") || "").trim().toUpperCase();
+  const password = String(formData.get("password") || "");
+  try {
+    setMessage("#workshopLoginMessage", "Logging in...");
+    const response = await fetch(`${PRINT_API_BASE}/api/workshop/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId, password })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.message || "Login failed");
+    setWorkshopToken(result.token);
+    form.reset();
+    setMessage("#workshopLoginMessage", "Login success.");
+    showWorkshopDashboard(true);
+    await loadWorkshopPanelData(result.student);
+    document.querySelector("#workshop-dashboard")?.scrollIntoView({ behavior: "smooth" });
+  } catch (error) {
+    console.error(error);
+    setMessage("#workshopLoginMessage", error.message || "Login failed", true);
+  }
+}
+
+async function checkExistingWorkshopSession() {
+  if (!isWorkshopPage()) return;
+  if (!getWorkshopToken()) {
+    showWorkshopDashboard(false);
+    return;
+  }
+  try {
+    const result = await workshopFetch("/api/workshop/me");
+    showWorkshopDashboard(true);
+    await loadWorkshopPanelData(result.student);
+  } catch {
+    setWorkshopToken("");
+    showWorkshopDashboard(false);
+  }
+}
+
+function logoutWorkshop() {
+  setWorkshopToken("");
+  showWorkshopDashboard(false);
+  setMessage("#workshopLoginMessage", "Logged out.");
+}
+
+async function loadWorkshopPanelData(student = null) {
+  try {
+    const result = await workshopFetch("/api/workshop/dashboard");
+    workshopDashboardCache = result;
+    renderWorkshopStudentProfile(result.student || student);
+    renderWorkshopProgress(result.progress || {});
+    renderWorkshopAssignments(result.assignments || []);
+    renderMyWorkshopSubmissions(result.submissions || []);
+    renderWorkshopAttendance(result.attendance || []);
+    renderWorkshopLeaderboard(result.leaderboard || []);
+    renderWorkshopCertificate(result.certificate || {});
+    await loadWorkshopTutorials();
+  } catch (error) {
+    console.error(error);
+    setMessage("#workshopSubmitMessage", `Dashboard load failed: ${error.message}`, true);
+  }
+}
+
+function renderWorkshopStudentProfile(student = {}) {
+  if ($("#workshopWelcomeTitle")) $("#workshopWelcomeTitle").textContent = `Welcome, ${student.name || student.studentId || "Student"}`;
+  if ($("#workshopStudentMeta")) $("#workshopStudentMeta").textContent = `${student.studentId || ""} · ${student.batch || "Workshop Batch"} · ${student.skill || "Design Workshop"}`;
+  const box = $("#workshopProfileCard");
+  if (box) {
+    box.innerHTML = `
+      <div class="profile-avatar">${escapeHTML((student.name || student.studentId || "A").slice(0, 1).toUpperCase())}</div>
+      <div>
+        <span>Student Profile</span>
+        <strong>${escapeHTML(student.name || "Student")}</strong>
+        <small>${escapeHTML(student.studentId || "")} · ${escapeHTML(student.batch || "Batch not set")} · ${escapeHTML(student.skill || "Skill not set")}</small>
+      </div>
+    `;
+  }
+}
+
+function renderWorkshopProgress(progress = {}) {
+  const cards = [
+    ["Total Submissions", progress.totalSubmissions ?? 0],
+    ["Reviewed Works", progress.reviewedWorks ?? 0],
+    ["Approved Works", progress.approvedWorks ?? 0],
+    ["Average Mark", `${progress.averageMark ?? 0}%`],
+    ["Attendance", `${progress.attendancePercent ?? 0}%`]
+  ];
+  const box = $("#workshopProgressCards");
+  if (!box) return;
+  box.innerHTML = cards.map(([label, value]) => `
+    <div class="student-progress-card">
+      <span>${escapeHTML(label)}</span>
+      <strong>${escapeHTML(value)}</strong>
+    </div>
+  `).join("");
+}
+
+function renderWorkshopAssignments(assignments = []) {
+  const list = $("#workshopAssignmentList");
+  const select = $("#workshopAssignmentSelect");
+  if (select) {
+    select.innerHTML = `<option value="">Select active assignment</option>` + assignments.map((item) => `
+      <option value="${escapeHTML(item.id)}" data-title="${escapeHTML(item.title)}">${escapeHTML(item.title)}${item.dueDate ? ` · ${escapeHTML(item.dueDate)}` : ""}</option>
+    `).join("");
+  }
+  if (!list) return;
+  if (!assignments.length) {
+    list.innerHTML = `<div class="list-item">Active assignments ഇല്ല. Admin add ചെയ്താൽ ഇവിടെ കാണും.</div>`;
+    return;
+  }
+  list.innerHTML = assignments.map((item) => `
+    <div class="assignment-card">
+      <div>
+        <strong>${escapeHTML(item.title)}</strong>
+        <p>${escapeHTML(item.description || "No description")}</p>
+        <small>Due: ${escapeHTML(item.dueDate || "Not set")} · Max mark: ${escapeHTML(item.maxMark || 100)} · ${escapeHTML(item.allowedFileTypes || "Any file")}</small>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function loadWorkshopTutorials() {
+  const box = $("#workshopTutorialList");
+  if (!box) return;
+  try {
+    box.innerHTML = `<div class="works-loading">Loading tutorials...</div>`;
+    const result = await workshopFetch("/api/workshop/tutorials");
+    const tutorials = result.tutorials || [];
+    if (!tutorials.length) {
+      box.innerHTML = `<div class="works-loading">Workshop tutorials admin add ചെയ്തിട്ടില്ല.</div>`;
+      return;
+    }
+    box.innerHTML = tutorials.map((tutorial) => `
+      <article class="tutorial-card reveal-card is-visible">
+        <div class="tutorial-thumb image-thumb">
+          ${tutorial.thumbnail ? `<img src="${escapeHTML(tutorial.thumbnail)}" alt="${escapeHTML(tutorial.title || "Tutorial")}" loading="lazy">` : `<span>YT</span>`}
+        </div>
+        <div class="tutorial-body">
+          <div class="tag-pair"><span>${escapeHTML(tutorial.category || "Workshop")}</span><span>${escapeHTML(tutorial.level || "Learning")}</span></div>
+          <h3>${escapeHTML(tutorial.title || "Tutorial")}</h3>
+          <p>${escapeHTML(tutorial.language || "Malayalam")}</p>
+          <a class="btn mini blue-btn" href="${escapeHTML(tutorial.youtubeLink || "#")}" target="_blank" rel="noopener">Watch</a>
+        </div>
+      </article>
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="works-loading">Tutorials load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function submitWorkshopAssignment(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const select = $("#workshopAssignmentSelect");
+  if (select && select.value) {
+    const title = select.options[select.selectedIndex]?.dataset?.title || select.options[select.selectedIndex]?.textContent || "";
+    formData.set("assignmentTitle", title.split(" · ")[0]);
+  }
+  if (!formData.get("file")) {
+    setMessage("#workshopSubmitMessage", "File select ചെയ്യണം.", true);
+    return;
+  }
+  if (!formData.get("assignmentId") && !String(formData.get("assignmentTitle") || "").trim()) {
+    setMessage("#workshopSubmitMessage", "Assignment select/title വേണം.", true);
+    return;
+  }
+  try {
+    setMessage("#workshopSubmitMessage", "Uploading submission...");
+    setProgress("#workshopProgressWrap", "#workshopProgress", "#workshopProgressText", 0);
+    await uploadWithProgress({
+      url: `${PRINT_API_BASE}/api/workshop/submit`,
+      formData,
+      headers: { Authorization: `Bearer ${getWorkshopToken()}` },
+      onProgress: (percent) => setProgress("#workshopProgressWrap", "#workshopProgress", "#workshopProgressText", percent)
+    });
+    form.reset();
+    setProgress("#workshopProgressWrap", "#workshopProgress", "#workshopProgressText", 100);
+    setMessage("#workshopSubmitMessage", "Submission uploaded successfully.");
+    setUploadWidgetState(getUploadWidgetForForm(form), "success", 100, "Submission uploaded successfully");
+    await loadWorkshopPanelData();
+    setTimeout(() => hideProgress("#workshopProgressWrap", "#workshopProgress", "#workshopProgressText"), 1200);
+  } catch (error) {
+    console.error(error);
+    setUploadWidgetState(getUploadWidgetForForm(form), "error", 0, error.message);
+    setMessage("#workshopSubmitMessage", error.message || "Submission failed", true);
+  }
+}
+
+function renderMyWorkshopSubmissions(submissions = []) {
+  const box = $("#myWorkshopSubmissionList");
+  if (!box) return;
+  if (!submissions.length) {
+    box.innerHTML = `<div class="list-item">ഇതുവരെ submissions ഇല്ല.</div>`;
+    return;
+  }
+  box.innerHTML = submissions.map((item) => `
+    <div class="list-item admin-file-item submission-feedback-card">
+      <div>
+        <strong>${escapeHTML(item.assignmentTitle || "Workshop submission")}</strong>
+        <span>${escapeHTML(item.originalName || "File")} · ${item.size ? formatSize(item.size) : "File"}</span>
+        <small>${formatTime(item.createdAt)} · ${statusLabel(item.reviewStatus || item.status)}</small>
+        <div class="student-feedback-box">
+          <b>Mark:</b> ${item.mark !== "" && item.mark !== undefined ? `${escapeHTML(item.mark)} / ${escapeHTML(item.maxMark || 100)}` : "Not marked yet"}<br>
+          <b>Feedback:</b> ${escapeHTML(item.feedback || "Feedback pending")}
+        </div>
+      </div>
+      <div class="list-actions">
+        <a class="btn mini blue-btn" href="${PRINT_API_BASE}/api/workshop/submission-file/${item.id}" target="_blank" rel="noopener">Open</a>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function loadMyWorkshopSubmissions() {
+  try {
+    const result = await workshopFetch("/api/workshop/my-submissions");
+    renderMyWorkshopSubmissions(result.submissions || []);
+  } catch (error) {
+    const box = $("#myWorkshopSubmissionList");
+    if (box) box.innerHTML = `<div class="list-item">Submissions load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function renderWorkshopAttendance(attendance = []) {
+  const box = $("#workshopAttendanceList");
+  if (!box) return;
+  if (!attendance.length) {
+    box.innerHTML = `<div class="list-item">Attendance records ഇല്ല. Admin class date create ചെയ്താൽ ഇവിടെ കാണും.</div>`;
+    return;
+  }
+  box.innerHTML = attendance.map((item) => `
+    <div class="list-item attendance-history-item">
+      <div>
+        <strong>${escapeHTML(item.title || "Class")}</strong>
+        <span>${escapeHTML(item.classDate || "")} ${item.time ? `· ${escapeHTML(item.time)}` : ""}</span>
+        <small>${escapeHTML(item.topic || "")}</small>
+      </div>
+      <span class="status-pill status-${escapeHTML(item.status)}">${statusLabel(item.status)}</span>
+    </div>
+  `).join("");
+}
+
+function renderWorkshopLeaderboard(list = []) {
+  const box = $("#workshopLeaderboardList");
+  if (!box) return;
+  if (!list.length) {
+    box.innerHTML = `<div class="list-item">Leaderboard data ഇല്ല.</div>`;
+    return;
+  }
+  box.innerHTML = list.map((item, index) => `
+    <div class="leaderboard-row">
+      <span class="leader-rank">${index + 1}</span>
+      <div>
+        <strong>${escapeHTML(item.name || item.studentId)}</strong>
+        <small>${escapeHTML(item.studentId)} · Avg ${escapeHTML(item.progress?.averageMark || 0)}% · Approved ${escapeHTML(item.progress?.approvedWorks || 0)}</small>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderWorkshopCertificate(certificate = {}) {
+  const box = $("#workshopCertificateBox");
+  if (!box) return;
+  if (certificate.eligible) {
+    box.innerHTML = `
+      <div class="certificate-badge active">
+        <span>🏆</span>
+        <strong>${escapeHTML(certificate.title || "Certificate Eligible")}</strong>
+        <small>${escapeHTML(certificate.note || "You are eligible for ADSA workshop completion badge.")}</small>
+      </div>
+    `;
+  } else {
+    box.innerHTML = `
+      <div class="certificate-badge">
+        <span>🎓</span>
+        <strong>Certificate Badge Locked</strong>
+        <small>Admin mark ചെയ്താൽ eligible badge ഇവിടെ കാണും.</small>
+      </div>
+    `;
+  }
+}
+
+// -------------------- ADMIN: WORKSHOP MANAGEMENT --------------------
+async function addWorkshopStudent(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const payload = {
+    studentId: String(formData.get("studentId") || "").trim().toUpperCase(),
+    name: String(formData.get("name") || "").trim(),
+    batch: String(formData.get("batch") || "").trim(),
+    skill: String(formData.get("skill") || "Design Workshop").trim(),
+    password: String(formData.get("password") || "")
+  };
+  try {
+    setMessage("#workshopStudentMessage", "Adding student...");
+    await adminFetch("/api/admin/workshop-students", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    form.reset();
+    setMessage("#workshopStudentMessage", "Student added.");
+    await loadAdminWorkshopStudents();
+    await loadAdminCertificates();
+    await loadAdminDashboardStats();
+  } catch (error) {
+    console.error(error);
+    setMessage("#workshopStudentMessage", error.message || "Student add failed", true);
+  }
+}
+
+async function loadAdminWorkshopStudents() {
+  const box = $("#workshopStudentsAdminList");
+  if (!box) return;
+  try {
+    box.innerHTML = `<div class="list-item">Loading workshop students...</div>`;
+    const result = await adminFetch("/api/admin/workshop-students");
+    const students = result.students || [];
+    if (!students.length) {
+      box.innerHTML = `<div class="list-item">Workshop students ഇല്ല.</div>`;
+      return;
+    }
+    box.innerHTML = students.map((student) => `
+      <div class="list-item admin-file-item workshop-student-item">
+        <div>
+          <strong>${escapeHTML(student.studentId)} · ${escapeHTML(student.name || "Student")}</strong>
+          <span>${student.active === false ? "Disabled" : "Active"} · ${escapeHTML(student.batch || "No batch")} · ${escapeHTML(student.skill || "No skill")}</span>
+          <small>Submissions: ${student.progress?.totalSubmissions || 0} · Avg: ${student.progress?.averageMark || 0}% · Attendance: ${student.progress?.attendancePercent || 0}%</small>
+        </div>
+        <div class="list-actions">
+          <button class="btn mini blue-btn" type="button" data-admin-edit-student="${escapeHTML(student.studentId)}" data-current-name="${escapeHTML(student.name || "")}" data-current-batch="${escapeHTML(student.batch || "")}" data-current-skill="${escapeHTML(student.skill || "")}">Edit</button>
+          <button class="btn mini soft" type="button" data-admin-student-password="${escapeHTML(student.studentId)}">Password</button>
+          <button class="btn mini soft" type="button" data-admin-toggle-student="${escapeHTML(student.studentId)}" data-active="${student.active === false ? "true" : "false"}">${student.active === false ? "Enable" : "Disable"}</button>
+          <button class="btn mini danger-btn" type="button" data-admin-delete-student="${escapeHTML(student.studentId)}">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Students load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function addWorkshopAssignment(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = Object.fromEntries(new FormData(form).entries());
+  payload.active = true;
+  try {
+    setMessage("#assignmentAdminMessage", "Adding assignment...");
+    await adminFetch("/api/admin/workshop-assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    form.reset();
+    setMessage("#assignmentAdminMessage", "Assignment added.");
+    await loadAdminWorkshopAssignments();
+    await loadAdminDashboardStats();
+  } catch (error) {
+    console.error(error);
+    setMessage("#assignmentAdminMessage", error.message || "Assignment add failed", true);
+  }
+}
+
+async function loadAdminWorkshopAssignments() {
+  const box = $("#assignmentAdminList");
+  if (!box) return;
+  try {
+    box.innerHTML = `<div class="list-item">Loading assignments...</div>`;
+    const result = await adminFetch("/api/admin/workshop-assignments");
+    const assignments = result.assignments || [];
+    if (!assignments.length) {
+      box.innerHTML = `<div class="list-item">Assignments ഇല്ല.</div>`;
+      return;
+    }
+    box.innerHTML = assignments.map((item) => `
+      <div class="list-item admin-file-item">
+        <div>
+          <strong>${escapeHTML(item.title)}</strong>
+          <span>${item.active === false ? "Closed" : "Active"} · Due: ${escapeHTML(item.dueDate || "Not set")} · Max: ${escapeHTML(item.maxMark || 100)}</span>
+          <small>${escapeHTML(item.description || "")}</small>
+        </div>
+        <div class="list-actions">
+          <button class="btn mini soft" type="button" data-admin-toggle-assignment="${item.id}" data-active="${item.active === false ? "true" : "false"}">${item.active === false ? "Open" : "Close"}</button>
+          <button class="btn mini danger-btn" type="button" data-admin-delete-assignment="${item.id}">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Assignments load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function loadAdminWorkshopSubmissions() {
+  const box = $("#workshopSubmissionsAdminList");
+  if (!box) return;
+  try {
+    box.innerHTML = `<div class="list-item">Loading workshop submissions...</div>`;
+    const result = await adminFetch("/api/admin/workshop-submissions");
+    const submissions = result.submissions || [];
+    if (!submissions.length) {
+      box.innerHTML = `<div class="list-item">Workshop submissions ഇല്ല.</div>`;
+      return;
+    }
+    box.innerHTML = submissions.map((item) => `
+      <div class="list-item admin-file-item feedback-admin-item">
+        <div class="feedback-admin-info">
+          <strong>${escapeHTML(item.assignmentTitle || "Workshop submission")}</strong>
+          <span>${escapeHTML(item.studentId || "")} · ${escapeHTML(item.studentName || "Student")} · ${item.size ? formatSize(item.size) : "File"}</span>
+          <small>${escapeHTML(item.originalName || "File")} · ${formatTime(item.createdAt)} · ${statusLabel(item.reviewStatus || item.status)}</small>
+          <label>Mark
+            <input class="input mini-input" type="number" min="0" max="${escapeHTML(item.maxMark || 100)}" value="${escapeHTML(item.mark ?? "")}" data-feedback-mark="${item.id}" placeholder="0-${escapeHTML(item.maxMark || 100)}">
+          </label>
+          <label>Status
+            <select class="input mini-input" data-feedback-status="${item.id}">
+              ${["submitted", "reviewed", "need-correction", "approved"].map((status) => `<option value="${status}" ${status === (item.reviewStatus || item.status) ? "selected" : ""}>${statusLabel(status)}</option>`).join("")}
+            </select>
+          </label>
+          <label>Feedback
+            <textarea class="input" rows="2" data-feedback-text="${item.id}" placeholder="Feedback for student">${escapeHTML(item.feedback || "")}</textarea>
+          </label>
+        </div>
+        <div class="list-actions stacked-actions">
+          <a class="btn mini blue-btn" href="${PRINT_API_BASE}/api/workshop/submission-file/${item.id}" target="_blank" rel="noopener">Open</a>
+          <a class="btn mini soft" href="${PRINT_API_BASE}/api/workshop/download-submission/${item.id}" target="_blank" rel="noopener">Download</a>
+          <button class="btn mini primary" type="button" data-admin-save-feedback="${item.id}">Save Feedback</button>
+          <button class="btn mini danger-btn" type="button" data-admin-delete-workshop-submission="${item.id}">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Submissions load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function addAttendanceClass(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = Object.fromEntries(new FormData(form).entries());
+  try {
+    setMessage("#attendanceAdminMessage", "Creating class...");
+    await adminFetch("/api/admin/workshop-attendance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    form.reset();
+    setMessage("#attendanceAdminMessage", "Class created. ഇനി attendance mark ചെയ്യാം.");
+    await loadAdminAttendanceClasses();
+    await loadAdminDashboardStats();
+  } catch (error) {
+    console.error(error);
+    setMessage("#attendanceAdminMessage", error.message || "Class create failed", true);
+  }
+}
+
+async function loadAdminAttendanceClasses() {
+  const box = $("#attendanceAdminList");
+  if (!box) return;
+  try {
+    box.innerHTML = `<div class="list-item">Loading attendance register...</div>`;
+    const [classesResult, studentsResult] = await Promise.all([
+      adminFetch("/api/admin/workshop-attendance"),
+      adminFetch("/api/admin/workshop-students")
+    ]);
+    const classes = classesResult.classes || [];
+    const students = studentsResult.students || [];
+    if (!classes.length) {
+      box.innerHTML = `<div class="list-item">Class dates create ചെയ്തിട്ടില്ല. Class ഉണ്ടെങ്കിൽ 1/2 days മുമ്പ് date add ചെയ്യുക.</div>`;
+      return;
+    }
+    box.innerHTML = classes.map((cls) => `
+      <div class="attendance-class-card" data-attendance-class="${cls.id}">
+        <div class="attendance-class-head">
+          <div>
+            <strong>${escapeHTML(cls.title)}</strong>
+            <span>${escapeHTML(cls.classDate)} ${cls.time ? `· ${escapeHTML(cls.time)}` : ""}</span>
+            <small>${escapeHTML(cls.topic || cls.notes || "")}</small>
+          </div>
+          <div class="list-actions">
+            <button class="btn mini blue-btn" type="button" data-admin-save-attendance="${cls.id}">Save Attendance</button>
+            <button class="btn mini danger-btn" type="button" data-admin-delete-attendance="${cls.id}">Delete Class</button>
+          </div>
+        </div>
+        <div class="attendance-student-grid">
+          ${students.map((student) => {
+            const current = (cls.records || {})[student.studentId] || "not-marked";
+            return `
+              <label class="attendance-student-row">
+                <span>${escapeHTML(student.studentId)} · ${escapeHTML(student.name)}</span>
+                <select class="input mini-input" data-attendance-student="${escapeHTML(student.studentId)}">
+                  ${["not-marked", "present", "absent", "late", "excused"].map((status) => `<option value="${status}" ${status === current ? "selected" : ""}>${statusLabel(status)}</option>`).join("")}
+                </select>
+              </label>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Attendance load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function loadAdminCertificates() {
+  const box = $("#certificateAdminList");
+  if (!box) return;
+  try {
+    box.innerHTML = `<div class="list-item">Loading certificates...</div>`;
+    const result = await adminFetch("/api/admin/workshop-certificates");
+    const students = result.students || [];
+    if (!students.length) {
+      box.innerHTML = `<div class="list-item">Students ഇല്ല.</div>`;
+      return;
+    }
+    box.innerHTML = students.map((student) => `
+      <div class="list-item admin-file-item certificate-admin-item">
+        <div>
+          <strong>${escapeHTML(student.studentId)} · ${escapeHTML(student.name)}</strong>
+          <span>${student.certificateEligible ? "Certificate Eligible" : "Not Eligible"}</span>
+          <small>${escapeHTML(student.certificateTitle || "ADSA Workshop Completion Badge")}</small>
+          <input class="input" data-certificate-title="${escapeHTML(student.studentId)}" value="${escapeHTML(student.certificateTitle || "ADSA Workshop Completion Badge")}" placeholder="Certificate title">
+          <textarea class="input" rows="2" data-certificate-note="${escapeHTML(student.studentId)}" placeholder="Certificate note">${escapeHTML(student.certificateNote || "")}</textarea>
+        </div>
+        <div class="list-actions stacked-actions">
+          <button class="btn mini ${student.certificateEligible ? "soft" : "blue-btn"}" type="button" data-admin-certificate-toggle="${escapeHTML(student.studentId)}" data-eligible="${student.certificateEligible ? "false" : "true"}">${student.certificateEligible ? "Remove" : "Make Eligible"}</button>
+          <button class="btn mini primary" type="button" data-admin-certificate-save="${escapeHTML(student.studentId)}" data-eligible="${student.certificateEligible ? "true" : "false"}">Save</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Certificates load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function handleWorkshopAdminActions(event) {
+  const editBtn = event.target.closest?.("[data-admin-edit-student]");
+  if (editBtn) {
+    const oldId = editBtn.getAttribute("data-admin-edit-student");
+    const currentName = editBtn.getAttribute("data-current-name") || "";
+    const currentBatch = editBtn.getAttribute("data-current-batch") || "";
+    const currentSkill = editBtn.getAttribute("data-current-skill") || "";
+    const newId = prompt("Student ID edit ചെയ്യാം:", oldId);
+    if (!newId) return;
+    const newName = prompt("Student name edit ചെയ്യാം:", currentName);
+    if (!newName) return;
+    const batch = prompt("Batch:", currentBatch) || "";
+    const skill = prompt("Skill/Course:", currentSkill) || "";
+    await adminFetch(`/api/admin/workshop-students/${encodeURIComponent(oldId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId: newId.trim().toUpperCase(), name: newName.trim(), batch, skill })
+    });
+    await loadAdminWorkshopStudents();
+    await loadAdminWorkshopSubmissions();
+    await loadAdminCertificates();
+    return;
+  }
+
+  const passwordBtn = event.target.closest?.("[data-admin-student-password]");
+  if (passwordBtn) {
+    const studentId = passwordBtn.getAttribute("data-admin-student-password");
+    const password = prompt(`${studentId} new password enter ചെയ്യുക:`);
+    if (!password) return;
+    await adminFetch(`/api/admin/workshop-students/${encodeURIComponent(studentId)}/password`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password })
+    });
+    alert("Password updated.");
+    return;
+  }
+
+  const toggleBtn = event.target.closest?.("[data-admin-toggle-student]");
+  if (toggleBtn) {
+    const studentId = toggleBtn.getAttribute("data-admin-toggle-student");
+    const active = toggleBtn.getAttribute("data-active") === "true";
+    await adminFetch(`/api/admin/workshop-students/${encodeURIComponent(studentId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active })
+    });
+    await loadAdminWorkshopStudents();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const deleteStudentBtn = event.target.closest?.("[data-admin-delete-student]");
+  if (deleteStudentBtn) {
+    const studentId = deleteStudentBtn.getAttribute("data-admin-delete-student");
+    if (!confirm(`${studentId} delete ചെയ്യണോ?`)) return;
+    await adminFetch(`/api/admin/workshop-students/${encodeURIComponent(studentId)}`, { method: "DELETE" });
+    await loadAdminWorkshopStudents();
+    await loadAdminCertificates();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const toggleAssignment = event.target.closest?.("[data-admin-toggle-assignment]");
+  if (toggleAssignment) {
+    const id = toggleAssignment.getAttribute("data-admin-toggle-assignment");
+    const active = toggleAssignment.getAttribute("data-active") === "true";
+    await adminFetch(`/api/admin/workshop-assignments/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active })
+    });
+    await loadAdminWorkshopAssignments();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const deleteAssignment = event.target.closest?.("[data-admin-delete-assignment]");
+  if (deleteAssignment) {
+    const id = deleteAssignment.getAttribute("data-admin-delete-assignment");
+    if (!confirm("Assignment delete ചെയ്യണോ?")) return;
+    await adminFetch(`/api/admin/workshop-assignments/${id}`, { method: "DELETE" });
+    await loadAdminWorkshopAssignments();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const saveFeedback = event.target.closest?.("[data-admin-save-feedback]");
+  if (saveFeedback) {
+    const id = saveFeedback.getAttribute("data-admin-save-feedback");
+    const mark = document.querySelector(`[data-feedback-mark="${CSS.escape(id)}"]`)?.value ?? "";
+    const reviewStatus = document.querySelector(`[data-feedback-status="${CSS.escape(id)}"]`)?.value || "reviewed";
+    const feedback = document.querySelector(`[data-feedback-text="${CSS.escape(id)}"]`)?.value || "";
+    await adminFetch(`/api/admin/workshop-submissions/${id}/feedback`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mark, reviewStatus, feedback })
+    });
+    alert("Feedback saved.");
+    await loadAdminWorkshopSubmissions();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const deleteSubmissionBtn = event.target.closest?.("[data-admin-delete-workshop-submission]");
+  if (deleteSubmissionBtn) {
+    const id = deleteSubmissionBtn.getAttribute("data-admin-delete-workshop-submission");
+    if (!confirm("ഈ workshop submission delete ചെയ്യണോ?")) return;
+    await adminFetch(`/api/admin/workshop-submissions/${id}`, { method: "DELETE" });
+    await loadAdminWorkshopSubmissions();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const saveAttendance = event.target.closest?.("[data-admin-save-attendance]");
+  if (saveAttendance) {
+    const id = saveAttendance.getAttribute("data-admin-save-attendance");
+    const card = document.querySelector(`[data-attendance-class="${CSS.escape(id)}"]`);
+    const records = {};
+    card?.querySelectorAll("[data-attendance-student]").forEach((select) => {
+      records[select.getAttribute("data-attendance-student")] = select.value;
+    });
+    await adminFetch(`/api/admin/workshop-attendance/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ records })
+    });
+    alert("Attendance saved.");
+    await loadAdminAttendanceClasses();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const deleteAttendance = event.target.closest?.("[data-admin-delete-attendance]");
+  if (deleteAttendance) {
+    const id = deleteAttendance.getAttribute("data-admin-delete-attendance");
+    if (!confirm("Attendance class delete ചെയ്യണോ?")) return;
+    await adminFetch(`/api/admin/workshop-attendance/${id}`, { method: "DELETE" });
+    await loadAdminAttendanceClasses();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const certificateBtn = event.target.closest?.("[data-admin-certificate-toggle], [data-admin-certificate-save]");
+  if (certificateBtn) {
+    const studentId = certificateBtn.getAttribute("data-admin-certificate-toggle") || certificateBtn.getAttribute("data-admin-certificate-save");
+    const eligible = certificateBtn.getAttribute("data-eligible") === "true";
+    const title = document.querySelector(`[data-certificate-title="${CSS.escape(studentId)}"]`)?.value || "ADSA Workshop Completion Badge";
+    const note = document.querySelector(`[data-certificate-note="${CSS.escape(studentId)}"]`)?.value || "";
+    await adminFetch(`/api/admin/workshop-certificates/${encodeURIComponent(studentId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ certificateEligible: eligible, certificateTitle: title, certificateNote: note })
+    });
+    await loadAdminCertificates();
+    await loadAdminDashboardStats();
+  }
+}
+
 // Connect after page loads
 window.addEventListener("DOMContentLoaded", () => {
   setupUploadWidgets();
@@ -1529,8 +2300,30 @@ window.addEventListener("DOMContentLoaded", () => {
   const assetForm = $("#addAssetForm");
   if (assetForm) assetForm.addEventListener("submit", addAsset);
 
+  const workshopStudentForm = $("#addWorkshopStudentForm");
+  if (workshopStudentForm) workshopStudentForm.addEventListener("submit", addWorkshopStudent);
+
+  const assignmentForm = $("#addWorkshopAssignmentForm");
+  if (assignmentForm) assignmentForm.addEventListener("submit", addWorkshopAssignment);
+
+  const attendanceForm = $("#addAttendanceClassForm");
+  if (attendanceForm) attendanceForm.addEventListener("submit", addAttendanceClass);
+
+  const workshopLoginForm = $("#workshopLoginForm");
+  if (workshopLoginForm) workshopLoginForm.addEventListener("submit", workshopLogin);
+
+  const workshopSubmissionForm = $("#workshopSubmissionForm");
+  if (workshopSubmissionForm) workshopSubmissionForm.addEventListener("submit", submitWorkshopAssignment);
+
+  $("#logoutWorkshopBtn")?.addEventListener("click", logoutWorkshop);
   $("#logoutAdminBtn")?.addEventListener("click", adminLogout);
   document.addEventListener("click", handleAdminActions);
+  document.addEventListener("click", (event) => {
+    handleWorkshopAdminActions(event).catch((error) => {
+      console.error(error);
+      alert(error.message || "Workshop admin action failed.");
+    });
+  });
 
   setupWorksModal();
   setupWorkViewer();
@@ -1540,4 +2333,5 @@ window.addEventListener("DOMContentLoaded", () => {
   loadPublicTutorials();
   loadPublicAssets();
   checkExistingAdminSession();
+  checkExistingWorkshopSession();
 });

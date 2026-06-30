@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ADSA Media & Computer Lab Portal</title>
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="shortcut icon" type="image/png" href="assets/logo.png" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +35,10 @@
       <a href="#workshop">Workshop</a>
     </nav>
 
-    <a class="admin-top-btn" href="#admin-login">Admin Login</a>
+    <div class="top-login-actions">
+      <a class="admin-top-btn iphone-glass-btn" href="#admin-login">Admin Login</a>
+      <a class="student-top-btn iphone-glass-btn" href="workshop.html" target="_blank" rel="noopener">Student Login</a>
+    </div>
   </header>
 
   <main>
@@ -379,17 +385,36 @@
       </div>
     </section>
 
-    <section class="section workshop-section reveal" id="workshop">
-      <div class="workshop-card">
-        <div>
+    <section class="section workshop-section premium-main-workshop reveal" id="workshop">
+      <div class="workshop-premium-card">
+        <div class="workshop-glow-orb"></div>
+        <div class="workshop-premium-copy">
           <p class="eyebrow blue">Protected Workshop</p>
           <h2>ADSA Designers Workshop</h2>
           <p>
-            Workshop portal separate secure site/page ആയി build ചെയ്യാം. അതിൽ profile section, advanced tutorials,
-            assets, workshop submissions, and trainer feedback add ചെയ്യാം.
+            Registered workshop students-ന് personal login, active assignments, upload submissions,
+            admin feedback, marks, attendance, leaderboard, and certificate badge എല്ലാം ഒരിടത്ത്.
           </p>
+          <div class="workshop-mini-points premium-points">
+            <span>Student Profile</span>
+            <span>Progress Cards</span>
+            <span>Assignments</span>
+            <span>Marks & Feedback</span>
+            <span>Attendance Register</span>
+            <span>Certificate Badge</span>
+          </div>
+          <div class="workshop-premium-actions">
+            <a class="btn primary iphone-glass-action" href="workshop.html" target="_blank" rel="noopener">Student Login</a>
+            <a class="btn soft iphone-glass-action" href="#admin-login">Admin Control</a>
+          </div>
         </div>
-        <button class="btn soft" id="workshopComingSoonBtn" type="button">Workshop Portal Coming Soon</button>
+        <div class="workshop-dashboard-mockup" aria-hidden="true">
+          <div class="mock-window-bar"><span></span><span></span><span></span></div>
+          <div class="mock-profile-row"><b>ADSA001</b><small>Design Workshop</small></div>
+          <div class="mock-progress-grid"><i>Submissions<br><b>08</b></i><i>Average<br><b>86%</b></i><i>Attendance<br><b>92%</b></i></div>
+          <div class="mock-task-card"><strong>Poster Design Task</strong><small>Status: Reviewed · Mark: 85/100</small></div>
+          <div class="mock-task-card soft"><strong>Certificate Badge</strong><small>Eligible after completion</small></div>
+        </div>
       </div>
     </section>
 

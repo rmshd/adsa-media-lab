@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ADSA Workshop Portal</title>
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="shortcut icon" type="image/png" href="assets/logo.png" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anek+Malayalam:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&family=Manjari:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="workshop" class="workshop-page-body">
+  <header class="site-header admin-site-header glass-workshop-nav">
+    <a class="brand" href="index.html" aria-label="Back to ADSA Digital Hub">
+      <span class="brand-mark">AD</span>
+      <span class="brand-text"><strong>ADSA Workshop</strong><small>Student Portal</small></span>
+    </a>
+    <nav class="main-nav admin-nav-visible">
+      <a href="index.html">Main Site</a>
+      <a href="#workshop-login">Login</a>
+      <a href="#workshop-dashboard">Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section workshop-portal-hero premium-workshop-login reveal" id="workshop-login">
+      <div class="workshop-hero-blobs"><span></span><span></span><span></span></div>
+      <div class="section-panel workshop-login-shell premium-workshop-shell">
+        <div class="workshop-login-copy">
+          <p class="eyebrow blue">Protected Student Area</p>
+          <h1>ADSA Designers Workshop Portal</h1>
+          <p>Student ID + password ഉപയോഗിച്ച് login ചെയ്യുക. Progress, assignments, feedback, attendance, leaderboard, certificate badge എല്ലാം ഇവിടെ കാണാം.</p>
+          <div class="workshop-feature-pills">
+            <span>Assignments</span><span>Marks & Feedback</span><span>Attendance</span><span>Certificate Badge</span>
+          </div>
+        </div>
+
+        <form class="form-card workshop-login-form glass-login-card" id="workshopLoginForm">
+          <label>Student ID
+            <input class="input" type="text" name="studentId" placeholder="ADSA001" autocomplete="username" required />
+          </label>
+          <label>Password
+            <input class="input" type="password" name="password" placeholder="Password" autocomplete="current-password" required />
+          </label>
+          <button class="btn primary full iphone-glass-action" type="submit">Student Login</button>
+          <p class="form-message" id="workshopLoginMessage"></p>
+          <small class="muted-note">Demo default: ADSA001 / Ws@2601. Admin panel-ൽ password മാറ്റാം.</small>
+        </form>
+      </div>
+    </section>
+
+    <section class="section hidden" id="workshop-dashboard">
+      <div class="section-panel workshop-dashboard-shell premium-dashboard-shell">
+        <div class="dashboard-head workshop-student-head">
+          <div>
+            <p class="eyebrow blue">Workshop Dashboard</p>
+            <h2 id="workshopWelcomeTitle">Welcome</h2>
+            <p id="workshopStudentMeta">Your learning area is ready.</p>
+          </div>
+          <button class="btn soft iphone-glass-action" id="logoutWorkshopBtn" type="button">Logout</button>
+        </div>
+
+        <div class="workshop-dashboard-grid advanced-workshop-grid">
+          <div class="panel profile-panel" id="workshopProfileCard">
+            <div class="works-loading">Profile loading...</div>
+          </div>
+
+          <div class="panel progress-panel wide-panel">
+            <h4>My Progress</h4>
+            <div class="student-progress-grid" id="workshopProgressCards"></div>
+          </div>
+
+          <div class="panel workshop-wide-panel">
+            <h4>Active Assignments</h4>
+            <div id="workshopAssignmentList" class="assignment-list"><div class="list-item">Assignments loading...</div></div>
+          </div>
+
+          <form class="panel" id="workshopSubmissionForm">
+            <h4>Submit Assignment</h4>
+            <label>Assignment
+              <select class="input" name="assignmentId" id="workshopAssignmentSelect"><option value="">Select active assignment</option></select>
+            </label>
+            <label>Custom Assignment Title <small>(optional)</small>
+              <input class="input" name="assignmentTitle" placeholder="Only if assignment not listed" />
+            </label>
+            <label>File
+              <input class="input file-input" type="file" name="file" required />
+            </label>
+            <label>Note <small>(optional)</small>
+              <textarea class="input" name="note" rows="3" placeholder="Short note about your work"></textarea>
+            </label>
+            <div class="progress-wrap hidden" id="workshopProgressWrap"><div class="progress-bar"><span id="workshopProgress"></span></div><small id="workshopProgressText">0%</small></div>
+            <button class="btn primary full iphone-glass-action" type="submit">Upload Submission</button>
+            <p class="form-message" id="workshopSubmitMessage"></p>
+          </form>
+
+          <div class="panel workshop-wide-panel">
+            <h4>My Submissions · Feedback & Marks</h4>
+            <div id="myWorkshopSubmissionList" class="list-box"><div class="list-item">Submissions ഇവിടെ കാണും.</div></div>
+          </div>
+
+          <div class="panel workshop-wide-panel">
+            <h4>Workshop Tutorials</h4>
+            <div id="workshopTutorialList" class="tutorial-grid compact-tutorial-grid"><div class="works-loading">Tutorials loading...</div></div>
+          </div>
+
+          <div class="panel">
+            <h4>Attendance History</h4>
+            <div id="workshopAttendanceList" class="list-box"><div class="list-item">Attendance ഇവിടെ കാണും.</div></div>
+          </div>
+
+          <div class="panel">
+            <h4>Leaderboard</h4>
+            <div id="workshopLeaderboardList" class="leaderboard-list"><div class="list-item">Leaderboard loading...</div></div>
+          </div>
+
+          <div class="panel">
+            <h4>Certificate</h4>
+            <div id="workshopCertificateBox"><div class="certificate-badge"><span>🎓</span><strong>Certificate Badge Locked</strong><small>Admin mark ചെയ്താൽ eligible badge ഇവിടെ കാണും.</small></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><p>© ADSA Media & Computer Lab · Workshop Portal</p></footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const revealItems = document.querySelectorAll(".reveal, .reveal-card");
+      const observer = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add("is-visible"); observer.unobserve(entry.target); } }), { threshold: 0.16, rootMargin: "0px 0px -60px 0px" });
+      revealItems.forEach((item) => observer.observe(item));
+    });
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
