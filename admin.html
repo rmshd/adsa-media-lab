@@ -117,7 +117,14 @@
               <label>Student Name<input class="input" name="name" placeholder="Student name" required /></label>
               <div class="form-row">
                 <label>Batch<input class="input" name="batch" placeholder="Workshop Batch 01" /></label>
-                <label>Skill / Course<input class="input" name="skill" value="Design Workshop" /></label>
+                <label>Workshop Category
+                  <select class="input" name="category">
+                    <option>Creative Graphic Design</option>
+                    <option>Video Editing & Motion</option>
+                    <option>Web Coding & Development</option>
+                    <option>Photo & Video Production</option>
+                  </select>
+                </label>
               </div>
               <label>Password<input class="input" name="password" placeholder="Temporary password" required /></label>
               <button class="btn primary full" type="submit">Add Student</button>
@@ -125,11 +132,44 @@
               <small class="muted-note">Default accounts: ADSA001–ADSA030. Default passwords: Ws@2601–Ws@2630.</small>
             </form>
 
-            <div class="panel"><h4>Workshop Students</h4><div id="workshopStudentsAdminList" class="list-box"><div class="list-item">Workshop students ഇവിടെ കാണും.</div></div></div>
+            <div class="panel wide-panel compact-student-manager-panel">
+              <span id="workshop-students-list" class="anchor-target"></span>
+              <div class="admin-panel-actions compact-manager-head">
+                <div>
+                  <h4>Workshop Student Manager</h4>
+                  <p class="muted-note">Full student list ഇവിടെ കാണിക്കില്ല. Student ID / name search ചെയ്താൽ മാത്രം edit card കാണാം.</p>
+                </div>
+                <span class="manager-count-pill" id="workshopStudentCompactCount">0 Students</span>
+              </div>
+              <div class="student-manager-toolbar">
+                <label>Search Student
+                  <input class="input" id="workshopStudentSearch" placeholder="ADSA001 / student name" autocomplete="off" />
+                </label>
+                <label>Category
+                  <select class="input" id="workshopStudentCategoryFilter">
+                    <option value="">All Categories</option>
+                    <option>Creative Graphic Design</option>
+                    <option>Video Editing & Motion</option>
+                    <option>Web Coding & Development</option>
+                    <option>Photo & Video Production</option>
+                  </select>
+                </label>
+              </div>
+              <div id="workshopStudentsAdminSummary" class="compact-summary-grid"></div>
+              <div id="workshopStudentsAdminList" class="list-box compact-results-box"><div class="list-item">Search ചെയ്താൽ student manage options കാണും.</div></div>
+            </div>
 
             <form class="panel" id="addWorkshopAssignmentForm"><span id="assignment-admin" class="anchor-target"></span>
               <h4>Create Assignment</h4>
               <label>Assignment Title<input class="input" name="title" placeholder="Poster Design Task 01" required /></label>
+              <label>Workshop Category
+                <select class="input" name="category">
+                  <option>Creative Graphic Design</option>
+                  <option>Video Editing & Motion</option>
+                  <option>Web Coding & Development</option>
+                  <option>Photo & Video Production</option>
+                </select>
+              </label>
               <label>Description<textarea class="input" name="description" rows="3" placeholder="Task details"></textarea></label>
               <div class="form-row">
                 <label>Due Date<input class="input" type="date" name="dueDate" /></label>
@@ -148,35 +188,68 @@
               <div id="workshopSubmissionsAdminList" class="list-box"><div class="list-item">Students submit ചെയ്യുന്ന files ഇവിടെ കാണും.</div></div>
             </div>
 
-            <form class="panel" id="addAttendanceClassForm"><span id="attendance-admin" class="anchor-target"></span>
-              <h4>Create Attendance Class</h4>
-              <label>Class Title<input class="input" name="title" placeholder="Photoshop Basics Class 01" required /></label>
-              <div class="form-row">
-                <label>Class Date<input class="input" type="date" name="classDate" required /></label>
-                <label>Time <small>(optional)</small><input class="input" name="time" placeholder="10:00 AM" /></label>
+            <div class="panel wide-panel attendance-control-panel"><span id="attendance-admin" class="anchor-target"></span>
+              <div class="attendance-control-copy">
+                <p class="eyebrow blue">Attendance</p>
+                <h4>Attendance Register</h4>
+                <p class="muted-note">Class date admin create ചെയ്യുന്നപ്പോൾ മാത്രം register-ൽ add ചെയ്യും. Table model-ൽ 30 class columns per page ആയി കാണാം.</p>
               </div>
-              <label>Topic<input class="input" name="topic" placeholder="Tools & Layers" /></label>
-              <label>Notes<textarea class="input" name="notes" rows="2" placeholder="Optional notes"></textarea></label>
-              <button class="btn primary full" type="submit">Create Class Date</button>
+              <button class="btn primary iphone-glass-action" id="openAttendanceRegisterBtn" type="button">Open Attendance Register</button>
               <p class="form-message" id="attendanceAdminMessage"></p>
-            </form>
-
-            <div class="panel wide-panel">
-              <h4>Attendance Register</h4>
-              <p class="muted-note">Class ഉണ്ടെങ്കിൽ മാത്രം date create ചെയ്യുക. Date auto set ചെയ്യില്ല.</p>
-              <div id="attendanceAdminList" class="list-box"><div class="list-item">Class dates ഇവിടെ കാണും.</div></div>
             </div>
 
-            <div class="panel wide-panel"><span id="certificate-admin" class="anchor-target"></span>
-              <h4>Certificates / Completion Badges</h4>
-              <p class="muted-note">Student-നെ certificate eligible ആക്കാം. Student dashboard-ൽ badge കാണും.</p>
-              <div id="certificateAdminList" class="list-box"><div class="list-item">Certificate list ഇവിടെ കാണും.</div></div>
+            <div class="panel wide-panel compact-certificate-manager-panel"><span id="certificate-admin" class="anchor-target"></span>
+              <div class="admin-panel-actions compact-manager-head">
+                <div>
+                  <h4>Certificates / Completion Badges</h4>
+                  <p class="muted-note">Student search ചെയ്താൽ മാത്രം certificate options കാണാം. Full list hidden ആണ്.</p>
+                </div>
+                <span class="manager-count-pill" id="certificateCompactCount">0 Eligible</span>
+              </div>
+              <div class="student-manager-toolbar single-search">
+                <label>Search Student
+                  <input class="input" id="certificateStudentSearch" placeholder="ADSA001 / student name" autocomplete="off" />
+                </label>
+              </div>
+              <div id="certificateAdminList" class="list-box compact-results-box"><div class="list-item">Search ചെയ്താൽ certificate manage option കാണും.</div></div>
             </div>
           </div>
         </div>
       </div>
     </section>
   </main>
+
+  <div class="attendance-register-modal hidden" id="attendanceRegisterModal" role="dialog" aria-modal="true" aria-labelledby="attendanceRegisterTitle" aria-hidden="true">
+    <button class="attendance-modal-backdrop" type="button" data-close-attendance-modal aria-label="Close attendance register"></button>
+    <div class="attendance-modal-card">
+      <div class="attendance-modal-head">
+        <div>
+          <p class="eyebrow blue">Workshop Attendance</p>
+          <h3 id="attendanceRegisterTitle">Attendance Register</h3>
+          <p>Student name first column. Class dates 30 columns per page. Cell click: 1 click = P, 2 click = A, 3 click = clear.</p>
+        </div>
+        <button class="modal-close" id="closeAttendanceRegisterBtn" type="button" aria-label="Close attendance register">×</button>
+      </div>
+
+      <div class="attendance-modal-tools">
+        <form class="attendance-create-inline" id="addAttendanceClassForm">
+          <input class="input" name="title" placeholder="Class title" required />
+          <input class="input" type="date" name="classDate" required />
+          <input class="input" name="time" placeholder="Time optional" />
+          <input class="input" name="topic" placeholder="Topic optional" />
+          <button class="btn primary" type="submit">Add Class Date</button>
+        </form>
+        <div class="attendance-page-actions">
+          <button class="btn mini soft" type="button" id="attendancePrevPage">← Previous 30</button>
+          <span id="attendancePageInfo">Page 1</span>
+          <button class="btn mini soft" type="button" id="attendanceNextPage">Next 30 →</button>
+          <button class="btn mini blue-btn" type="button" id="saveAttendanceRegisterBtn" data-admin-save-attendance-register>Save Register</button>
+        </div>
+      </div>
+
+      <div id="attendanceAdminList" class="attendance-register-wrap"><div class="list-item">Attendance register loading...</div></div>
+    </div>
+  </div>
 
   <div class="work-viewer-modal hidden" id="workViewerModal" role="dialog" aria-modal="true" aria-labelledby="workViewerTitle" aria-hidden="true">
     <button class="work-viewer-backdrop" type="button" data-close-work-viewer aria-label="Close work preview"></button>

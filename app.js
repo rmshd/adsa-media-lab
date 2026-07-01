@@ -960,6 +960,7 @@ function ensurePublicFontsDownloadButton() {
     grid.parentNode.insertBefore(bar, grid);
   }
   setupFontDownloadLinks();
+  setupAttendanceRegisterModal();
   return bar;
 }
 
@@ -1575,6 +1576,30 @@ function statusLabel(status = "submitted") {
   return map[status] || status;
 }
 
+const WORKSHOP_CATEGORIES = [
+  "Creative Graphic Design",
+  "Video Editing & Motion",
+  "Web Coding & Development",
+  "Photo & Video Production"
+];
+
+function workshopCategoryLabel(value = "") {
+  const clean = String(value || "").trim();
+  if (!clean || clean === "Design Workshop") return "Creative Graphic Design";
+  return clean;
+}
+
+function attendanceShortLabel(status = "not-marked") {
+  const map = { present: "P", absent: "A", late: "L", excused: "E", "not-marked": "" };
+  return map[status] ?? "";
+}
+
+let attendancePageIndex = 0;
+const ATTENDANCE_PAGE_SIZE = 30;
+let attendanceRegisterCache = { classes: [], students: [] };
+let adminWorkshopStudentsCache = [];
+let adminCertificateStudentsCache = [];
+
 async function workshopLogin(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1644,7 +1669,7 @@ async function loadWorkshopPanelData(student = null) {
 
 function renderWorkshopStudentProfile(student = {}) {
   if ($("#workshopWelcomeTitle")) $("#workshopWelcomeTitle").textContent = `Welcome, ${student.name || student.studentId || "Student"}`;
-  if ($("#workshopStudentMeta")) $("#workshopStudentMeta").textContent = `${student.studentId || ""} · ${student.batch || "Workshop Batch"} · ${student.skill || "Design Workshop"}`;
+  if ($("#workshopStudentMeta")) $("#workshopStudentMeta").textContent = `${student.studentId || ""} · ${student.batch || "Workshop Batch"} · ${workshopCategoryLabel(student.category || student.skill)}`;
   const box = $("#workshopProfileCard");
   if (box) {
     box.innerHTML = `
@@ -1652,7 +1677,7 @@ function renderWorkshopStudentProfile(student = {}) {
       <div>
         <span>Student Profile</span>
         <strong>${escapeHTML(student.name || "Student")}</strong>
-        <small>${escapeHTML(student.studentId || "")} · ${escapeHTML(student.batch || "Batch not set")} · ${escapeHTML(student.skill || "Skill not set")}</small>
+        <small>${escapeHTML(student.studentId || "")} · ${escapeHTML(student.batch || "Batch not set")} · ${escapeHTML(workshopCategoryLabel(student.category || student.skill))}</small>
       </div>
     `;
   }
@@ -1679,18 +1704,22 @@ function renderWorkshopProgress(progress = {}) {
 function renderWorkshopAssignments(assignments = []) {
   const list = $("#workshopAssignmentList");
   const select = $("#workshopAssignmentSelect");
+  const filter = $("#workshopCategoryFilter")?.value || "all";
+  const filteredAssignments = filter === "all" ? assignments : assignments.filter((item) => workshopCategoryLabel(item.category) === filter);
+
   if (select) {
     select.innerHTML = `<option value="">Select active assignment</option>` + assignments.map((item) => `
       <option value="${escapeHTML(item.id)}" data-title="${escapeHTML(item.title)}">${escapeHTML(item.title)}${item.dueDate ? ` · ${escapeHTML(item.dueDate)}` : ""}</option>
     `).join("");
   }
   if (!list) return;
-  if (!assignments.length) {
-    list.innerHTML = `<div class="list-item">Active assignments ഇല്ല. Admin add ചെയ്താൽ ഇവിടെ കാണും.</div>`;
+  if (!filteredAssignments.length) {
+    list.innerHTML = `<div class="list-item">ഈ category-ൽ active assignments ഇല്ല. Admin add ചെയ്താൽ ഇവിടെ കാണും.</div>`;
     return;
   }
-  list.innerHTML = assignments.map((item) => `
-    <div class="assignment-card">
+  list.innerHTML = filteredAssignments.map((item) => `
+    <div class="assignment-card category-assignment-card">
+      <div class="assignment-category-chip">${escapeHTML(workshopCategoryLabel(item.category))}</div>
       <div>
         <strong>${escapeHTML(item.title)}</strong>
         <p>${escapeHTML(item.description || "No description")}</p>
@@ -1872,7 +1901,8 @@ async function addWorkshopStudent(event) {
     studentId: String(formData.get("studentId") || "").trim().toUpperCase(),
     name: String(formData.get("name") || "").trim(),
     batch: String(formData.get("batch") || "").trim(),
-    skill: String(formData.get("skill") || "Design Workshop").trim(),
+    category: String(formData.get("category") || "Creative Graphic Design").trim(),
+    skill: String(formData.get("category") || "Creative Graphic Design").trim(),
     password: String(formData.get("password") || "")
   };
   try {
@@ -1883,7 +1913,9 @@ async function addWorkshopStudent(event) {
       body: JSON.stringify(payload)
     });
     form.reset();
-    setMessage("#workshopStudentMessage", "Student added.");
+    const searchInput = $("#workshopStudentSearch");
+    if (searchInput) searchInput.value = payload.studentId;
+    setMessage("#workshopStudentMessage", "Student added. Search result card താഴെ കാണാം.");
     await loadAdminWorkshopStudents();
     await loadAdminCertificates();
     await loadAdminDashboardStats();
@@ -1897,32 +1929,91 @@ async function loadAdminWorkshopStudents() {
   const box = $("#workshopStudentsAdminList");
   if (!box) return;
   try {
-    box.innerHTML = `<div class="list-item">Loading workshop students...</div>`;
+    box.innerHTML = `<div class="list-item">Loading student manager...</div>`;
     const result = await adminFetch("/api/admin/workshop-students");
-    const students = result.students || [];
-    if (!students.length) {
-      box.innerHTML = `<div class="list-item">Workshop students ഇല്ല.</div>`;
-      return;
-    }
-    box.innerHTML = students.map((student) => `
-      <div class="list-item admin-file-item workshop-student-item">
+    adminWorkshopStudentsCache = (result.students || []).slice().sort((a, b) => String(a.studentId || "").localeCompare(String(b.studentId || "")));
+    renderAdminWorkshopStudentManager();
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Students load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function getWorkshopStudentSearchValues() {
+  return {
+    query: String($("#workshopStudentSearch")?.value || "").trim().toLowerCase(),
+    category: String($("#workshopStudentCategoryFilter")?.value || "").trim()
+  };
+}
+
+function renderAdminWorkshopStudentManager() {
+  const box = $("#workshopStudentsAdminList");
+  if (!box) return;
+  const countPill = $("#workshopStudentCompactCount");
+  if (countPill) countPill.textContent = `${adminWorkshopStudentsCache.length} Students`;
+
+  const summary = $("#workshopStudentsAdminSummary");
+  if (summary) {
+    const activeCount = adminWorkshopStudentsCache.filter((s) => s.active !== false).length;
+    const disabledCount = adminWorkshopStudentsCache.length - activeCount;
+    const categoryCards = WORKSHOP_CATEGORIES.map((cat) => {
+      const count = adminWorkshopStudentsCache.filter((s) => workshopCategoryLabel(s.category || s.skill) === cat).length;
+      return `<div class="compact-summary-card"><span>${escapeHTML(cat)}</span><strong>${count}</strong></div>`;
+    }).join("");
+    summary.innerHTML = `
+      <div class="compact-summary-card"><span>Active</span><strong>${activeCount}</strong></div>
+      <div class="compact-summary-card"><span>Disabled</span><strong>${disabledCount}</strong></div>
+      ${categoryCards}
+    `;
+  }
+
+  if (!adminWorkshopStudentsCache.length) {
+    box.innerHTML = `<div class="list-item">Workshop students ഇല്ല. Add Student form ഉപയോഗിച്ച് add ചെയ്യുക.</div>`;
+    return;
+  }
+
+  const { query, category } = getWorkshopStudentSearchValues();
+  const filtered = adminWorkshopStudentsCache.filter((student) => {
+    const haystack = `${student.studentId || ""} ${student.name || ""} ${student.batch || ""} ${student.category || student.skill || ""}`.toLowerCase();
+    const categoryOk = !category || workshopCategoryLabel(student.category || student.skill) === category;
+    const queryOk = query && haystack.includes(query);
+    return categoryOk && queryOk;
+  });
+
+  if (!query) {
+    box.innerHTML = `
+      <div class="compact-empty-state">
+        <strong>Full student list hidden</strong>
+        <span>Student ID അല്ലെങ്കിൽ name search ചെയ്താൽ മാത്രം edit / password / disable / delete options കാണും.</span>
+      </div>
+    `;
+    return;
+  }
+
+  if (!filtered.length) {
+    box.innerHTML = `<div class="list-item">Search result ഇല്ല. Student ID/name ശരിയാണോ check ചെയ്യുക.</div>`;
+    return;
+  }
+
+  const limited = filtered.slice(0, 6);
+  box.innerHTML = `
+    ${filtered.length > 6 ? `<div class="compact-result-note">${filtered.length} matches found. First 6 മാത്രം കാണിക്കുന്നു. Search കുറച്ച് കൂടുതൽ exact ആക്കൂ.</div>` : ""}
+    ${limited.map((student) => `
+      <div class="list-item admin-file-item workshop-student-item compact-student-card">
         <div>
           <strong>${escapeHTML(student.studentId)} · ${escapeHTML(student.name || "Student")}</strong>
-          <span>${student.active === false ? "Disabled" : "Active"} · ${escapeHTML(student.batch || "No batch")} · ${escapeHTML(student.skill || "No skill")}</span>
+          <span>${student.active === false ? "Disabled" : "Active"} · ${escapeHTML(student.batch || "No batch")} · ${escapeHTML(workshopCategoryLabel(student.category || student.skill))}</span>
           <small>Submissions: ${student.progress?.totalSubmissions || 0} · Avg: ${student.progress?.averageMark || 0}% · Attendance: ${student.progress?.attendancePercent || 0}%</small>
         </div>
         <div class="list-actions">
-          <button class="btn mini blue-btn" type="button" data-admin-edit-student="${escapeHTML(student.studentId)}" data-current-name="${escapeHTML(student.name || "")}" data-current-batch="${escapeHTML(student.batch || "")}" data-current-skill="${escapeHTML(student.skill || "")}">Edit</button>
+          <button class="btn mini blue-btn" type="button" data-admin-edit-student="${escapeHTML(student.studentId)}" data-current-name="${escapeHTML(student.name || "")}" data-current-batch="${escapeHTML(student.batch || "")}" data-current-skill="${escapeHTML(workshopCategoryLabel(student.category || student.skill))}">Edit</button>
           <button class="btn mini soft" type="button" data-admin-student-password="${escapeHTML(student.studentId)}">Password</button>
           <button class="btn mini soft" type="button" data-admin-toggle-student="${escapeHTML(student.studentId)}" data-active="${student.active === false ? "true" : "false"}">${student.active === false ? "Enable" : "Disable"}</button>
           <button class="btn mini danger-btn" type="button" data-admin-delete-student="${escapeHTML(student.studentId)}">Delete</button>
         </div>
       </div>
-    `).join("");
-  } catch (error) {
-    console.error(error);
-    box.innerHTML = `<div class="list-item">Students load failed: ${escapeHTML(error.message)}</div>`;
-  }
+    `).join("")}
+  `;
 }
 
 async function addWorkshopAssignment(event) {
@@ -1962,7 +2053,7 @@ async function loadAdminWorkshopAssignments() {
       <div class="list-item admin-file-item">
         <div>
           <strong>${escapeHTML(item.title)}</strong>
-          <span>${item.active === false ? "Closed" : "Active"} · Due: ${escapeHTML(item.dueDate || "Not set")} · Max: ${escapeHTML(item.maxMark || 100)}</span>
+          <span>${item.active === false ? "Closed" : "Active"} · ${escapeHTML(workshopCategoryLabel(item.category))} · Due: ${escapeHTML(item.dueDate || "Not set")} · Max: ${escapeHTML(item.maxMark || 100)}</span>
           <small>${escapeHTML(item.description || "")}</small>
         </div>
         <div class="list-actions">
@@ -2050,59 +2141,169 @@ async function loadAdminAttendanceClasses() {
       adminFetch("/api/admin/workshop-attendance"),
       adminFetch("/api/admin/workshop-students")
     ]);
-    const classes = classesResult.classes || [];
-    const students = studentsResult.students || [];
-    if (!classes.length) {
-      box.innerHTML = `<div class="list-item">Class dates create ചെയ്തിട്ടില്ല. Class ഉണ്ടെങ്കിൽ 1/2 days മുമ്പ് date add ചെയ്യുക.</div>`;
-      return;
-    }
-    box.innerHTML = classes.map((cls) => `
-      <div class="attendance-class-card" data-attendance-class="${cls.id}">
-        <div class="attendance-class-head">
-          <div>
-            <strong>${escapeHTML(cls.title)}</strong>
-            <span>${escapeHTML(cls.classDate)} ${cls.time ? `· ${escapeHTML(cls.time)}` : ""}</span>
-            <small>${escapeHTML(cls.topic || cls.notes || "")}</small>
-          </div>
-          <div class="list-actions">
-            <button class="btn mini blue-btn" type="button" data-admin-save-attendance="${cls.id}">Save Attendance</button>
-            <button class="btn mini danger-btn" type="button" data-admin-delete-attendance="${cls.id}">Delete Class</button>
-          </div>
-        </div>
-        <div class="attendance-student-grid">
-          ${students.map((student) => {
-            const current = (cls.records || {})[student.studentId] || "not-marked";
-            return `
-              <label class="attendance-student-row">
-                <span>${escapeHTML(student.studentId)} · ${escapeHTML(student.name)}</span>
-                <select class="input mini-input" data-attendance-student="${escapeHTML(student.studentId)}">
-                  ${["not-marked", "present", "absent", "late", "excused"].map((status) => `<option value="${status}" ${status === current ? "selected" : ""}>${statusLabel(status)}</option>`).join("")}
-                </select>
-              </label>
-            `;
-          }).join("")}
-        </div>
-      </div>
-    `).join("");
+    const classes = (classesResult.classes || []).slice().sort((a, b) => {
+      const dateCompare = String(a.classDate || "").localeCompare(String(b.classDate || ""));
+      return dateCompare || ((a.createdAt || 0) - (b.createdAt || 0));
+    });
+    const students = (studentsResult.students || []).slice().sort((a, b) => String(a.studentId || "").localeCompare(String(b.studentId || "")));
+    attendanceRegisterCache = { classes, students };
+    renderAttendanceRegisterTable();
   } catch (error) {
     console.error(error);
     box.innerHTML = `<div class="list-item">Attendance load failed: ${escapeHTML(error.message)}</div>`;
   }
 }
 
+function renderAttendanceRegisterTable() {
+  const box = $("#attendanceAdminList");
+  if (!box) return;
+  const { classes, students } = attendanceRegisterCache;
+  if (!students.length) {
+    box.innerHTML = `<div class="list-item">Students ഇല്ല. ആദ്യം Workshop Students add ചെയ്യുക.</div>`;
+    return;
+  }
+  if (!classes.length) {
+    box.innerHTML = `<div class="list-item">Class date create ചെയ്തിട്ടില്ല. മുകളിൽ Add Class Date ഉപയോഗിച്ച് date add ചെയ്യുക.</div>`;
+    updateAttendancePageControls();
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(classes.length / ATTENDANCE_PAGE_SIZE));
+  attendancePageIndex = Math.min(Math.max(attendancePageIndex, 0), totalPages - 1);
+  const start = attendancePageIndex * ATTENDANCE_PAGE_SIZE;
+  const pageClasses = classes.slice(start, start + ATTENDANCE_PAGE_SIZE);
+
+  box.innerHTML = `
+    <div class="attendance-register-scroll">
+      <table class="attendance-register-table">
+        <thead>
+          <tr>
+            <th class="student-name-col">Student Name</th>
+            ${pageClasses.map((cls, index) => `
+              <th class="class-date-col" title="${escapeHTML(cls.title || "Class")} ${escapeHTML(cls.topic || "")}">
+                <button class="attendance-date-chip" type="button" data-admin-delete-attendance="${escapeHTML(cls.id)}" title="Delete this class date">
+                  <b>${escapeHTML(cls.classDate || `Class ${start + index + 1}`)}</b>
+                  <small>${escapeHTML(cls.time || cls.topic || cls.title || "Class")}</small>
+                </button>
+              </th>
+            `).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${students.map((student) => `
+            <tr>
+              <td class="student-name-col student-name-cell"><strong>${escapeHTML(student.name || "Student")}</strong><small>${escapeHTML(student.studentId || "")} · ${escapeHTML(workshopCategoryLabel(student.category || student.skill))}</small></td>
+              ${pageClasses.map((cls) => {
+                const status = (cls.records || {})[student.studentId] || "not-marked";
+                return `<td><button class="attendance-cell status-${escapeHTML(status)}" type="button" data-attendance-cell data-attendance-class-id="${escapeHTML(cls.id)}" data-attendance-student="${escapeHTML(student.studentId)}" data-status="${escapeHTML(status)}">${escapeHTML(attendanceShortLabel(status))}</button></td>`;
+              }).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+  updateAttendancePageControls();
+}
+
+function updateAttendancePageControls() {
+  const total = attendanceRegisterCache.classes.length;
+  const totalPages = Math.max(1, Math.ceil(total / ATTENDANCE_PAGE_SIZE));
+  const info = $("#attendancePageInfo");
+  if (info) info.textContent = `Page ${attendancePageIndex + 1} / ${totalPages} · ${total} class date(s)`;
+  const prev = $("#attendancePrevPage");
+  const next = $("#attendanceNextPage");
+  if (prev) prev.disabled = attendancePageIndex <= 0;
+  if (next) next.disabled = attendancePageIndex >= totalPages - 1;
+}
+
+function setupAttendanceRegisterModal() {
+  const modal = $("#attendanceRegisterModal");
+  const openBtn = $("#openAttendanceRegisterBtn");
+  const closeBtn = $("#closeAttendanceRegisterBtn");
+  const closeTargets = $$('[data-close-attendance-modal]');
+  const openModal = async () => {
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    await loadAdminAttendanceClasses();
+  };
+  const closeModal = () => {
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+  };
+  openBtn?.addEventListener("click", openModal);
+  closeBtn?.addEventListener("click", closeModal);
+  closeTargets.forEach((item) => item.addEventListener("click", closeModal));
+  $("#attendancePrevPage")?.addEventListener("click", () => {
+    attendancePageIndex = Math.max(0, attendancePageIndex - 1);
+    renderAttendanceRegisterTable();
+  });
+  $("#attendanceNextPage")?.addEventListener("click", () => {
+    const totalPages = Math.max(1, Math.ceil(attendanceRegisterCache.classes.length / ATTENDANCE_PAGE_SIZE));
+    attendancePageIndex = Math.min(totalPages - 1, attendancePageIndex + 1);
+    renderAttendanceRegisterTable();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modal && !modal.classList.contains("hidden")) closeModal();
+  });
+}
+
 async function loadAdminCertificates() {
   const box = $("#certificateAdminList");
   if (!box) return;
   try {
-    box.innerHTML = `<div class="list-item">Loading certificates...</div>`;
+    box.innerHTML = `<div class="list-item">Loading certificate manager...</div>`;
     const result = await adminFetch("/api/admin/workshop-certificates");
-    const students = result.students || [];
-    if (!students.length) {
-      box.innerHTML = `<div class="list-item">Students ഇല്ല.</div>`;
-      return;
-    }
-    box.innerHTML = students.map((student) => `
-      <div class="list-item admin-file-item certificate-admin-item">
+    adminCertificateStudentsCache = result.students || [];
+    renderAdminCertificateManager();
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Certificates load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function renderAdminCertificateManager() {
+  const box = $("#certificateAdminList");
+  if (!box) return;
+  const eligible = adminCertificateStudentsCache.filter((student) => student.certificateEligible).length;
+  const countPill = $("#certificateCompactCount");
+  if (countPill) countPill.textContent = `${eligible} Eligible`;
+
+  if (!adminCertificateStudentsCache.length) {
+    box.innerHTML = `<div class="list-item">Students ഇല്ല.</div>`;
+    return;
+  }
+
+  const query = String($("#certificateStudentSearch")?.value || "").trim().toLowerCase();
+  if (!query) {
+    box.innerHTML = `
+      <div class="compact-empty-state">
+        <strong>Certificate full list hidden</strong>
+        <span>Student ID അല്ലെങ്കിൽ name search ചെയ്താൽ certificate eligibility update ചെയ്യാം.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const filtered = adminCertificateStudentsCache.filter((student) => {
+    const haystack = `${student.studentId || ""} ${student.name || ""} ${student.certificateTitle || ""}`.toLowerCase();
+    return haystack.includes(query);
+  });
+
+  if (!filtered.length) {
+    box.innerHTML = `<div class="list-item">Search result ഇല്ല.</div>`;
+    return;
+  }
+
+  const limited = filtered.slice(0, 6);
+  box.innerHTML = `
+    ${filtered.length > 6 ? `<div class="compact-result-note">${filtered.length} matches found. First 6 മാത്രം കാണിക്കുന്നു.</div>` : ""}
+    ${limited.map((student) => `
+      <div class="list-item admin-file-item certificate-admin-item compact-student-card">
         <div>
           <strong>${escapeHTML(student.studentId)} · ${escapeHTML(student.name)}</strong>
           <span>${student.certificateEligible ? "Certificate Eligible" : "Not Eligible"}</span>
@@ -2115,11 +2316,8 @@ async function loadAdminCertificates() {
           <button class="btn mini primary" type="button" data-admin-certificate-save="${escapeHTML(student.studentId)}" data-eligible="${student.certificateEligible ? "true" : "false"}">Save</button>
         </div>
       </div>
-    `).join("");
-  } catch (error) {
-    console.error(error);
-    box.innerHTML = `<div class="list-item">Certificates load failed: ${escapeHTML(error.message)}</div>`;
-  }
+    `).join("")}
+  `;
 }
 
 async function handleWorkshopAdminActions(event) {
@@ -2134,11 +2332,11 @@ async function handleWorkshopAdminActions(event) {
     const newName = prompt("Student name edit ചെയ്യാം:", currentName);
     if (!newName) return;
     const batch = prompt("Batch:", currentBatch) || "";
-    const skill = prompt("Skill/Course:", currentSkill) || "";
+    const skill = prompt("Workshop Category:", currentSkill) || "Creative Graphic Design";
     await adminFetch(`/api/admin/workshop-students/${encodeURIComponent(oldId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studentId: newId.trim().toUpperCase(), name: newName.trim(), batch, skill })
+      body: JSON.stringify({ studentId: newId.trim().toUpperCase(), name: newName.trim(), batch, skill, category: skill })
     });
     await loadAdminWorkshopStudents();
     await loadAdminWorkshopSubmissions();
@@ -2236,20 +2434,36 @@ async function handleWorkshopAdminActions(event) {
     return;
   }
 
-  const saveAttendance = event.target.closest?.("[data-admin-save-attendance]");
-  if (saveAttendance) {
-    const id = saveAttendance.getAttribute("data-admin-save-attendance");
-    const card = document.querySelector(`[data-attendance-class="${CSS.escape(id)}"]`);
-    const records = {};
-    card?.querySelectorAll("[data-attendance-student]").forEach((select) => {
-      records[select.getAttribute("data-attendance-student")] = select.value;
+  const attendanceCell = event.target.closest?.("[data-attendance-cell]");
+  if (attendanceCell) {
+    const current = attendanceCell.getAttribute("data-status") || "not-marked";
+    const next = current === "not-marked" ? "present" : current === "present" ? "absent" : "not-marked";
+    attendanceCell.setAttribute("data-status", next);
+    attendanceCell.textContent = attendanceShortLabel(next);
+    attendanceCell.classList.remove("status-not-marked", "status-present", "status-absent", "status-late", "status-excused");
+    attendanceCell.classList.add(`status-${next}`);
+    return;
+  }
+
+  const saveAttendanceRegister = event.target.closest?.("[data-admin-save-attendance-register]");
+  if (saveAttendanceRegister) {
+    const classRecords = {};
+    document.querySelectorAll("[data-attendance-cell]").forEach((cell) => {
+      const classId = cell.getAttribute("data-attendance-class-id");
+      const studentId = cell.getAttribute("data-attendance-student");
+      const status = cell.getAttribute("data-status") || "not-marked";
+      if (!classRecords[classId]) classRecords[classId] = {};
+      classRecords[classId][studentId] = status;
     });
-    await adminFetch(`/api/admin/workshop-attendance/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ records })
-    });
-    alert("Attendance saved.");
+    const entries = Object.entries(classRecords);
+    for (const [id, records] of entries) {
+      await adminFetch(`/api/admin/workshop-attendance/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ records })
+      });
+    }
+    alert("Attendance register saved.");
     await loadAdminAttendanceClasses();
     await loadAdminDashboardStats();
     return;
@@ -2282,8 +2496,19 @@ async function handleWorkshopAdminActions(event) {
 }
 
 // Connect after page loads
+function setupCompactStudentManagers() {
+  const studentSearch = $("#workshopStudentSearch");
+  const studentCategory = $("#workshopStudentCategoryFilter");
+  studentSearch?.addEventListener("input", renderAdminWorkshopStudentManager);
+  studentCategory?.addEventListener("change", renderAdminWorkshopStudentManager);
+
+  const certificateSearch = $("#certificateStudentSearch");
+  certificateSearch?.addEventListener("input", renderAdminCertificateManager);
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   setupUploadWidgets();
+  setupCompactStudentManagers();
 
   const printForm = $("#printUploadForm");
   if (printForm) printForm.addEventListener("submit", uploadPrintFile);
@@ -2315,6 +2540,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const workshopSubmissionForm = $("#workshopSubmissionForm");
   if (workshopSubmissionForm) workshopSubmissionForm.addEventListener("submit", submitWorkshopAssignment);
 
+  $("#workshopCategoryFilter")?.addEventListener("change", () => renderWorkshopAssignments(workshopDashboardCache?.assignments || []));
+
   $("#logoutWorkshopBtn")?.addEventListener("click", logoutWorkshop);
   $("#logoutAdminBtn")?.addEventListener("click", adminLogout);
   document.addEventListener("click", handleAdminActions);
@@ -2328,6 +2555,7 @@ window.addEventListener("DOMContentLoaded", () => {
   setupWorksModal();
   setupWorkViewer();
   setupFontDownloadLinks();
+  setupAttendanceRegisterModal();
   loadPrintFiles();
   loadStudentWorks();
   loadPublicTutorials();

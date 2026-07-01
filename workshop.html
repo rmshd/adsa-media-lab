@@ -34,7 +34,7 @@
           <h1>ADSA Designers Workshop Portal</h1>
           <p>Student ID + password ഉപയോഗിച്ച് login ചെയ്യുക. Progress, assignments, feedback, attendance, leaderboard, certificate badge എല്ലാം ഇവിടെ കാണാം.</p>
           <div class="workshop-feature-pills">
-            <span>Assignments</span><span>Marks & Feedback</span><span>Attendance</span><span>Certificate Badge</span>
+            <span>Creative Graphic Design</span><span>Video Editing & Motion</span><span>Web Coding & Development</span><span>Photo & Video Production</span>
           </div>
         </div>
 
@@ -74,7 +74,16 @@
           </div>
 
           <div class="panel workshop-wide-panel">
-            <h4>Active Assignments</h4>
+            <div class="panel-title-row">
+              <h4>Active Assignments</h4>
+              <select class="input mini-input" id="workshopCategoryFilter">
+                <option value="all">All Categories</option>
+                <option>Creative Graphic Design</option>
+                <option>Video Editing & Motion</option>
+                <option>Web Coding & Development</option>
+                <option>Photo & Video Production</option>
+              </select>
+            </div>
             <div id="workshopAssignmentList" class="assignment-list"><div class="list-item">Assignments loading...</div></div>
           </div>
 
