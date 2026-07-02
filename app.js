@@ -960,7 +960,6 @@ function ensurePublicFontsDownloadButton() {
     grid.parentNode.insertBefore(bar, grid);
   }
   setupFontDownloadLinks();
-  setupAttendanceRegisterModal();
   return bar;
 }
 
@@ -1576,6 +1575,22 @@ function statusLabel(status = "submitted") {
   return map[status] || status;
 }
 
+function statusBadge(status = "submitted") {
+  const clean = String(status || "submitted").toLowerCase();
+  return `<span class="status-pill status-${escapeHTML(clean)}">${escapeHTML(statusLabel(clean))}</span>`;
+}
+
+function timeAgo(ms) {
+  if (!ms) return "Just now";
+  const diff = Math.max(0, Date.now() - Number(ms));
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  return formatTime(ms);
+}
+
 const WORKSHOP_CATEGORIES = [
   "Creative Graphic Design",
   "Video Editing & Motion",
@@ -1599,6 +1614,7 @@ const ATTENDANCE_PAGE_SIZE = 30;
 let attendanceRegisterCache = { classes: [], students: [] };
 let adminWorkshopStudentsCache = [];
 let adminCertificateStudentsCache = [];
+let adminWorkshopSubmissionsCache = [];
 
 async function workshopLogin(event) {
   event.preventDefault();
@@ -1659,6 +1675,7 @@ async function loadWorkshopPanelData(student = null) {
     renderMyWorkshopSubmissions(result.submissions || []);
     renderWorkshopAttendance(result.attendance || []);
     renderWorkshopLeaderboard(result.leaderboard || []);
+    renderWorkshopNotifications(result.notifications || []);
     renderWorkshopCertificate(result.certificate || {});
     await loadWorkshopTutorials();
   } catch (error) {
@@ -1810,7 +1827,7 @@ function renderMyWorkshopSubmissions(submissions = []) {
       <div>
         <strong>${escapeHTML(item.assignmentTitle || "Workshop submission")}</strong>
         <span>${escapeHTML(item.originalName || "File")} · ${item.size ? formatSize(item.size) : "File"}</span>
-        <small>${formatTime(item.createdAt)} · ${statusLabel(item.reviewStatus || item.status)}</small>
+        <small>${formatTime(item.createdAt)} · ${statusBadge(item.reviewStatus || item.status)}</small>
         <div class="student-feedback-box">
           <b>Mark:</b> ${item.mark !== "" && item.mark !== undefined ? `${escapeHTML(item.mark)} / ${escapeHTML(item.maxMark || 100)}` : "Not marked yet"}<br>
           <b>Feedback:</b> ${escapeHTML(item.feedback || "Feedback pending")}
@@ -1875,21 +1892,48 @@ function renderWorkshopCertificate(certificate = {}) {
   if (!box) return;
   if (certificate.eligible) {
     box.innerHTML = `
-      <div class="certificate-badge active">
-        <span>🏆</span>
+      <div class="certificate-badge active premium-certificate-card">
+        <span class="cert-icon-emoji">🏆</span>
+        <img class="certificate-3d-icon" src="assets/certificate-3d.png" alt="Certificate icon" onerror="this.style.display='none'" />
+        <div class="certificate-glow-ring"></div>
         <strong>${escapeHTML(certificate.title || "Certificate Eligible")}</strong>
         <small>${escapeHTML(certificate.note || "You are eligible for ADSA workshop completion badge.")}</small>
       </div>
     `;
   } else {
     box.innerHTML = `
-      <div class="certificate-badge">
-        <span>🎓</span>
+      <div class="certificate-badge premium-certificate-card locked">
+        <span class="cert-icon-emoji">🎓</span>
+        <img class="certificate-3d-icon" src="assets/certificate-3d.png" alt="Certificate icon" onerror="this.style.display='none'" />
         <strong>Certificate Badge Locked</strong>
-        <small>Admin mark ചെയ്താൽ eligible badge ഇവിടെ കാണും.</small>
+        <small>Admin mark ചെയ്താൽ eligible badge ഇവിടെ premium badge ആയി കാണും.</small>
       </div>
     `;
   }
+}
+
+function renderWorkshopNotifications(notifications = []) {
+  const btn = $("#workshopNotificationBtn");
+  const count = $("#workshopNotificationCount");
+  const list = $("#workshopNotificationList");
+  if (!btn || !count || !list) return;
+  const items = notifications || [];
+  count.textContent = String(items.length);
+  count.classList.toggle("hidden", !items.length);
+  btn.classList.toggle("has-notifications", Boolean(items.length));
+  if (!items.length) {
+    list.innerHTML = `<div class="compact-empty-state"><strong>No new notifications</strong><span>New assignments/classes add ചെയ്താൽ 24 hours വരെ ഇവിടെ കാണും.</span></div>`;
+    return;
+  }
+  list.innerHTML = items.map((item) => `
+    <div class="notification-item type-${escapeHTML(item.type || "info")}">
+      <span class="notification-type-icon">${item.type === "class" ? "📅" : "📝"}</span>
+      <div>
+        <strong>${escapeHTML(item.title || "Notification")}</strong>
+        <small>${escapeHTML(item.message || "")} · ${escapeHTML(timeAgo(item.createdAt))}</small>
+      </div>
+    </div>
+  `).join("");
 }
 
 // -------------------- ADMIN: WORKSHOP MANAGEMENT --------------------
@@ -2070,29 +2114,74 @@ async function loadAdminWorkshopAssignments() {
 
 async function loadAdminWorkshopSubmissions() {
   const box = $("#workshopSubmissionsAdminList");
-  if (!box) return;
   try {
-    box.innerHTML = `<div class="list-item">Loading workshop submissions...</div>`;
+    if (box) box.innerHTML = `<div class="list-item">Loading submission summary...</div>`;
     const result = await adminFetch("/api/admin/workshop-submissions");
-    const submissions = result.submissions || [];
-    if (!submissions.length) {
-      box.innerHTML = `<div class="list-item">Workshop submissions ഇല്ല.</div>`;
-      return;
-    }
-    box.innerHTML = submissions.map((item) => `
-      <div class="list-item admin-file-item feedback-admin-item">
+    adminWorkshopSubmissionsCache = result.submissions || [];
+    renderAdminWorkshopSubmissionSummary();
+    renderAdminWorkshopSubmissionModalList();
+  } catch (error) {
+    console.error(error);
+    if (box) box.innerHTML = `<div class="list-item">Submissions load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function renderAdminWorkshopSubmissionSummary() {
+  const summary = $("#workshopSubmissionSummary");
+  const hiddenBox = $("#workshopSubmissionsAdminList");
+  const statuses = ["submitted", "reviewed", "need-correction", "approved"];
+  const counts = Object.fromEntries(statuses.map((status) => [status, 0]));
+  for (const item of adminWorkshopSubmissionsCache) {
+    const status = String(item.reviewStatus || item.status || "submitted");
+    if (counts[status] !== undefined) counts[status] += 1;
+  }
+  if (summary) {
+    summary.innerHTML = `
+      <div class="compact-summary-card"><span>Total</span><strong>${adminWorkshopSubmissionsCache.length}</strong></div>
+      <div class="compact-summary-card status-card submitted"><span>Submitted</span><strong>${counts.submitted}</strong></div>
+      <div class="compact-summary-card status-card reviewed"><span>Reviewed</span><strong>${counts.reviewed}</strong></div>
+      <div class="compact-summary-card status-card need-correction"><span>Need Correction</span><strong>${counts["need-correction"]}</strong></div>
+      <div class="compact-summary-card status-card approved"><span>Approved</span><strong>${counts.approved}</strong></div>
+    `;
+  }
+  if (hiddenBox) {
+    hiddenBox.innerHTML = `<div class="compact-empty-state"><strong>Full list hidden</strong><span>${adminWorkshopSubmissionsCache.length} submission(s). Open Submissions popup ഉപയോഗിച്ച് review ചെയ്യുക.</span></div>`;
+  }
+}
+
+function renderAdminWorkshopSubmissionModalList() {
+  const box = $("#workshopSubmissionsModalList");
+  if (!box) return;
+  const query = String($("#submissionSearchInput")?.value || "").trim().toLowerCase();
+  const filter = String($("#submissionStatusFilter")?.value || "all");
+  let submissions = adminWorkshopSubmissionsCache.slice();
+  if (filter !== "all") submissions = submissions.filter((item) => String(item.reviewStatus || item.status) === filter);
+  if (query) {
+    submissions = submissions.filter((item) => `${item.studentId || ""} ${item.studentName || ""} ${item.assignmentTitle || ""} ${item.originalName || ""}`.toLowerCase().includes(query));
+  }
+  if (!submissions.length) {
+    box.innerHTML = `<div class="list-item">Matching submissions ഇല്ല.</div>`;
+    return;
+  }
+  box.innerHTML = submissions.map((item) => `
+      <div class="list-item admin-file-item feedback-admin-item submission-review-card">
         <div class="feedback-admin-info">
-          <strong>${escapeHTML(item.assignmentTitle || "Workshop submission")}</strong>
+          <div class="submission-card-title-row">
+            <strong>${escapeHTML(item.assignmentTitle || "Workshop submission")}</strong>
+            ${statusBadge(item.reviewStatus || item.status)}
+          </div>
           <span>${escapeHTML(item.studentId || "")} · ${escapeHTML(item.studentName || "Student")} · ${item.size ? formatSize(item.size) : "File"}</span>
-          <small>${escapeHTML(item.originalName || "File")} · ${formatTime(item.createdAt)} · ${statusLabel(item.reviewStatus || item.status)}</small>
-          <label>Mark
-            <input class="input mini-input" type="number" min="0" max="${escapeHTML(item.maxMark || 100)}" value="${escapeHTML(item.mark ?? "")}" data-feedback-mark="${item.id}" placeholder="0-${escapeHTML(item.maxMark || 100)}">
-          </label>
-          <label>Status
-            <select class="input mini-input" data-feedback-status="${item.id}">
-              ${["submitted", "reviewed", "need-correction", "approved"].map((status) => `<option value="${status}" ${status === (item.reviewStatus || item.status) ? "selected" : ""}>${statusLabel(status)}</option>`).join("")}
-            </select>
-          </label>
+          <small>${escapeHTML(item.originalName || "File")} · ${formatTime(item.createdAt)}</small>
+          <div class="feedback-form-grid">
+            <label>Mark
+              <input class="input mini-input" type="number" min="0" max="${escapeHTML(item.maxMark || 100)}" value="${escapeHTML(item.mark ?? "")}" data-feedback-mark="${item.id}" placeholder="0-${escapeHTML(item.maxMark || 100)}">
+            </label>
+            <label>Status
+              <select class="input mini-input" data-feedback-status="${item.id}">
+                ${["submitted", "reviewed", "need-correction", "approved"].map((status) => `<option value="${status}" ${status === (item.reviewStatus || item.status) ? "selected" : ""}>${statusLabel(status)}</option>`).join("")}
+              </select>
+            </label>
+          </div>
           <label>Feedback
             <textarea class="input" rows="2" data-feedback-text="${item.id}" placeholder="Feedback for student">${escapeHTML(item.feedback || "")}</textarea>
           </label>
@@ -2105,10 +2194,32 @@ async function loadAdminWorkshopSubmissions() {
         </div>
       </div>
     `).join("");
-  } catch (error) {
-    console.error(error);
-    box.innerHTML = `<div class="list-item">Submissions load failed: ${escapeHTML(error.message)}</div>`;
-  }
+}
+
+function setupSubmissionManagerModal() {
+  const modal = $("#submissionManagerModal");
+  const openBtn = $("#openSubmissionManagerBtn");
+  const closeBtn = $("#closeSubmissionManagerBtn");
+  const closeTargets = $$('[data-close-submission-modal]');
+  const openModal = async () => {
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    if (!adminWorkshopSubmissionsCache.length) await loadAdminWorkshopSubmissions();
+    renderAdminWorkshopSubmissionModalList();
+  };
+  const closeModal = () => {
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+  };
+  openBtn?.addEventListener("click", openModal);
+  closeBtn?.addEventListener("click", closeModal);
+  closeTargets.forEach((item) => item.addEventListener("click", closeModal));
+  $("#submissionSearchInput")?.addEventListener("input", renderAdminWorkshopSubmissionModalList);
+  $("#submissionStatusFilter")?.addEventListener("change", renderAdminWorkshopSubmissionModalList);
 }
 
 async function addAttendanceClass(event) {
@@ -2184,6 +2295,7 @@ function renderAttendanceRegisterTable() {
                 <button class="attendance-date-chip" type="button" data-admin-delete-attendance="${escapeHTML(cls.id)}" title="Delete this class date">
                   <b>${escapeHTML(cls.classDate || `Class ${start + index + 1}`)}</b>
                   <small>${escapeHTML(cls.time || cls.topic || cls.title || "Class")}</small>
+                  <em>Delete</em>
                 </button>
               </th>
             `).join("")}
@@ -2420,6 +2532,7 @@ async function handleWorkshopAdminActions(event) {
     });
     alert("Feedback saved.");
     await loadAdminWorkshopSubmissions();
+    renderAdminWorkshopSubmissionModalList();
     await loadAdminDashboardStats();
     return;
   }
@@ -2430,6 +2543,7 @@ async function handleWorkshopAdminActions(event) {
     if (!confirm("ഈ workshop submission delete ചെയ്യണോ?")) return;
     await adminFetch(`/api/admin/workshop-submissions/${id}`, { method: "DELETE" });
     await loadAdminWorkshopSubmissions();
+    renderAdminWorkshopSubmissionModalList();
     await loadAdminDashboardStats();
     return;
   }
@@ -2495,6 +2609,19 @@ async function handleWorkshopAdminActions(event) {
   }
 }
 
+
+function setupWorkshopNotificationPanel() {
+  const btn = $("#workshopNotificationBtn");
+  const panel = $("#workshopNotificationPanel");
+  if (!btn || !panel) return;
+  btn.addEventListener("click", () => panel.classList.toggle("hidden"));
+  document.addEventListener("click", (event) => {
+    if (!panel.classList.contains("hidden") && !panel.contains(event.target) && !btn.contains(event.target)) {
+      panel.classList.add("hidden");
+    }
+  });
+}
+
 // Connect after page loads
 function setupCompactStudentManagers() {
   const studentSearch = $("#workshopStudentSearch");
@@ -2556,6 +2683,8 @@ window.addEventListener("DOMContentLoaded", () => {
   setupWorkViewer();
   setupFontDownloadLinks();
   setupAttendanceRegisterModal();
+  setupSubmissionManagerModal();
+  setupWorkshopNotificationPanel();
   loadPrintFiles();
   loadStudentWorks();
   loadPublicTutorials();

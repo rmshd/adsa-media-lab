@@ -182,10 +182,21 @@
 
             <div class="panel"><h4>Assignments</h4><div id="assignmentAdminList" class="list-box"><div class="list-item">Assignments ഇവിടെ കാണും.</div></div></div>
 
-            <div class="panel wide-panel"><span id="workshop-submissions-admin" class="anchor-target"></span>
-              <h4>Workshop Submissions · Marks & Feedback</h4>
-              <p class="muted-note">ഓരോ work-നും mark, feedback, status കൊടുത്ത് Save Feedback ചെയ്യുക.</p>
-              <div id="workshopSubmissionsAdminList" class="list-box"><div class="list-item">Students submit ചെയ്യുന്ന files ഇവിടെ കാണും.</div></div>
+            <div class="panel wide-panel submissions-control-panel"><span id="workshop-submissions-admin" class="anchor-target"></span>
+              <div class="attendance-control-copy">
+                <p class="eyebrow blue">Feedback</p>
+                <h4>Workshop Submissions</h4>
+                <p class="muted-note">Full submission list front page-ൽ കാണിക്കില്ല. Summary മാത്രം കാണും. Open Submissions click ചെയ്താൽ popup-ൽ mark, feedback, status update ചെയ്യാം.</p>
+              </div>
+              <div id="workshopSubmissionSummary" class="submission-summary-grid">
+                <div class="compact-summary-card"><span>Total</span><strong>0</strong></div>
+                <div class="compact-summary-card"><span>Submitted</span><strong>0</strong></div>
+                <div class="compact-summary-card"><span>Reviewed</span><strong>0</strong></div>
+                <div class="compact-summary-card"><span>Need Correction</span><strong>0</strong></div>
+                <div class="compact-summary-card"><span>Approved</span><strong>0</strong></div>
+              </div>
+              <button class="btn primary iphone-glass-action" id="openSubmissionManagerBtn" type="button">Open Submissions</button>
+              <div id="workshopSubmissionsAdminList" class="list-box hidden"><div class="list-item">Submissions popup-ൽ കാണും.</div></div>
             </div>
 
             <div class="panel wide-panel attendance-control-panel"><span id="attendance-admin" class="anchor-target"></span>
@@ -218,6 +229,32 @@
       </div>
     </section>
   </main>
+
+
+  <div class="submission-manager-modal hidden" id="submissionManagerModal" role="dialog" aria-modal="true" aria-labelledby="submissionManagerTitle" aria-hidden="true">
+    <button class="attendance-modal-backdrop" type="button" data-close-submission-modal aria-label="Close submissions"></button>
+    <div class="attendance-modal-card submission-modal-card">
+      <div class="attendance-modal-head">
+        <div>
+          <p class="eyebrow blue">Workshop Feedback</p>
+          <h3 id="submissionManagerTitle">Workshop Submissions</h3>
+          <p>Search + status filter ഉപയോഗിച്ച് submissions manage ചെയ്യുക. Status colors quick review-ന് സഹായിക്കും.</p>
+        </div>
+        <button class="modal-close" id="closeSubmissionManagerBtn" type="button" aria-label="Close submissions">×</button>
+      </div>
+      <div class="submission-modal-tools">
+        <input class="input" id="submissionSearchInput" placeholder="Search student / assignment / file" autocomplete="off" />
+        <select class="input" id="submissionStatusFilter">
+          <option value="all">All Status</option>
+          <option value="submitted">Submitted</option>
+          <option value="reviewed">Reviewed</option>
+          <option value="need-correction">Need Correction</option>
+          <option value="approved">Approved</option>
+        </select>
+      </div>
+      <div id="workshopSubmissionsModalList" class="list-box submission-modal-list"><div class="list-item">Submissions loading...</div></div>
+    </div>
+  </div>
 
   <div class="attendance-register-modal hidden" id="attendanceRegisterModal" role="dialog" aria-modal="true" aria-labelledby="attendanceRegisterTitle" aria-hidden="true">
     <button class="attendance-modal-backdrop" type="button" data-close-attendance-modal aria-label="Close attendance register"></button>

@@ -60,7 +60,18 @@
             <h2 id="workshopWelcomeTitle">Welcome</h2>
             <p id="workshopStudentMeta">Your learning area is ready.</p>
           </div>
-          <button class="btn soft iphone-glass-action" id="logoutWorkshopBtn" type="button">Logout</button>
+          <div class="workshop-head-actions">
+            <button class="notification-bell-btn" id="workshopNotificationBtn" type="button" aria-label="Workshop notifications">
+              <span class="notification-bell-icon">🔔</span>
+              <span class="notification-bell-count hidden" id="workshopNotificationCount">0</span>
+            </button>
+            <button class="btn soft iphone-glass-action" id="logoutWorkshopBtn" type="button">Logout</button>
+          </div>
+        </div>
+
+        <div class="workshop-notification-panel hidden" id="workshopNotificationPanel">
+          <div class="notification-panel-head"><strong>Workshop Notifications</strong><small>New classes and assignments auto hide after 24 hours.</small></div>
+          <div id="workshopNotificationList" class="notification-list"><div class="list-item">No new notifications.</div></div>
         </div>
 
         <div class="workshop-dashboard-grid advanced-workshop-grid">
@@ -128,7 +139,7 @@
 
           <div class="panel">
             <h4>Certificate</h4>
-            <div id="workshopCertificateBox"><div class="certificate-badge"><span>🎓</span><strong>Certificate Badge Locked</strong><small>Admin mark ചെയ്താൽ eligible badge ഇവിടെ കാണും.</small></div></div>
+            <div id="workshopCertificateBox"><div class="certificate-badge premium-certificate-card"><span class="cert-icon-emoji">🎓</span><img class="certificate-3d-icon" src="assets/certificate-3d.png" alt="Certificate icon" onerror="this.style.display='none'" /><strong>Certificate Badge Locked</strong><small>Admin mark ചെയ്താൽ eligible badge ഇവിടെ കാണും.</small></div></div>
           </div>
         </div>
       </div>
