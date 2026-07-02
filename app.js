@@ -2538,69 +2538,87 @@ function attendancePdfStatusLabel(status = "not-marked") {
   return "";
 }
 
+function getAttendancePdfPages(classes = [], pageSize = ATTENDANCE_PAGE_SIZE) {
+  const totalSlots = Math.max(pageSize, Math.ceil(Math.max(classes.length, 1) / pageSize) * pageSize);
+  const padded = Array.from({ length: totalSlots }, (_, index) => classes[index] || {
+    id: `blank-${index + 1}`,
+    classDate: "",
+    time: "",
+    title: "",
+    topic: "",
+    records: {},
+    isBlank: true
+  });
+  const pages = [];
+  for (let index = 0; index < padded.length; index += pageSize) {
+    pages.push(padded.slice(index, index + pageSize));
+  }
+  return pages;
+}
+
 function buildAttendancePrintableHtml() {
   const { classes, students } = attendanceRegisterCache;
   const pageSize = ATTENDANCE_PAGE_SIZE;
-  const pages = [];
-  const totalPages = Math.max(1, Math.ceil(classes.length / pageSize));
-  for (let page = 0; page < totalPages; page += 1) {
-    const pageClasses = classes.slice(page * pageSize, page * pageSize + pageSize);
-    pages.push(`
-      <section class="print-page">
-        <h1>ADSA Workshop Attendance Register</h1>
-        <p>Page ${page + 1} / ${totalPages} · ${pageClasses.length} class date(s)</p>
-        <table>
-          <thead>
-            <tr>
-              <th class="name-col">Student Name</th>
-              ${pageClasses.map((cls, index) => `<th><span>${escapeHTML(cls.classDate || `Class ${page * pageSize + index + 1}`)}</span></th>`).join("")}
-            </tr>
-          </thead>
-          <tbody>
-            ${students.map((student) => `
-              <tr>
-                <td class="name-col"><strong>${escapeHTML(student.name || "Student")}</strong><br><small>${escapeHTML(student.studentId || "")}</small></td>
-                ${pageClasses.map((cls) => {
-                  const status = (cls.records || {})[student.studentId] || "not-marked";
-                  return `<td class="${status === "present" ? "present" : status === "absent" ? "absent" : ""}">${escapeHTML(attendancePdfStatusLabel(status))}</td>`;
-                }).join("")}
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </section>
-    `);
-  }
+  const pages = getAttendancePdfPages(classes, pageSize);
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <title>ADSA Attendance Register</title>
       <style>
-        @page { size: A4 landscape; margin: 7mm; }
+        @page { size: A4 landscape; margin: 6mm; }
+        * { box-sizing: border-box; }
         body { margin: 0; font-family: Arial, sans-serif; color: #111827; }
         .print-page { page-break-after: always; }
         .print-page:last-child { page-break-after: auto; }
-        h1 { margin: 0 0 2mm; font-size: 15px; }
-        p { margin: 0 0 3mm; font-size: 9px; color: #475569; }
+        h1 { margin: 0 0 1mm; font-size: 14px; line-height: 1.1; }
+        p { margin: 0 0 2mm; font-size: 8px; color: #475569; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #9ca3af; text-align: center; padding: 1mm; font-size: 7px; height: 7mm; }
+        th, td { border: 1px solid #94a3b8; text-align: center; padding: 0.6mm; font-size: 6.2px; height: 5.6mm; vertical-align: middle; }
         th { background: #e0f2fe; font-weight: 800; }
-        .name-col { width: 42mm; text-align: left; }
-        small { font-size: 6px; color: #475569; }
-        td.present { background: #dcfce7; color: #166534; font-weight: 800; }
-        td.absent { background: #fee2e2; color: #991b1b; font-weight: 800; }
+        .name-col { width: 38mm; text-align: left; }
+        .date-col { width: calc((100% - 38mm) / 30); }
+        .date-box { display: block; min-height: 4.8mm; line-height: 1.1; overflow: hidden; word-break: break-all; }
+        small { font-size: 5.4px; color: #475569; }
+        td.present { color: #166534; font-weight: 900; }
+        td.absent { color: #991b1b; font-weight: 900; }
       </style>
     </head>
-    <body>${pages.join("")}</body>
+    <body>
+      ${pages.map((pageClasses, page) => `
+        <section class="print-page">
+          <h1>ADSA Workshop Attendance Register</h1>
+          <p>Page ${page + 1} / ${pages.length} · 30 class boxes per A4 landscape page</p>
+          <table>
+            <thead>
+              <tr>
+                <th class="name-col">Student Name</th>
+                ${pageClasses.map((cls) => `<th class="date-col"><span class="date-box">${escapeHTML(cls.classDate || "")}</span></th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${students.map((student) => `
+                <tr>
+                  <td class="name-col"><strong>${escapeHTML(student.name || "Student")}</strong><br><small>${escapeHTML(student.studentId || "")}</small></td>
+                  ${pageClasses.map((cls) => {
+                    const status = cls.isBlank ? "not-marked" : ((cls.records || {})[student.studentId] || "not-marked");
+                    return `<td class="${status === "present" ? "present" : status === "absent" ? "absent" : ""}">${escapeHTML(attendancePdfStatusLabel(status))}</td>`;
+                  }).join("")}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </section>
+      `).join("")}
+    </body>
     </html>
   `;
 }
 
 function downloadAttendancePdf() {
   const { classes, students } = attendanceRegisterCache;
-  if (!students.length || !classes.length) {
-    alert("Attendance PDF ഉണ്ടാക്കാൻ students/classes വേണം.");
+  if (!students.length) {
+    alert("Attendance PDF ഉണ്ടാക്കാൻ students വേണം.");
     return;
   }
 
@@ -2622,45 +2640,47 @@ function downloadAttendancePdf() {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = 297;
   const pageH = 210;
-  const margin = 7;
-  const titleH = 13;
-  const rowH = 5.8;
-  const headerH = 12;
-  const nameW = 42;
+  const margin = 6;
+  const titleH = 11;
+  const rowH = 5.45;
+  const headerH = 11;
+  const nameW = 38;
   const pageSize = ATTENDANCE_PAGE_SIZE;
-  const pages = Math.max(1, Math.ceil(classes.length / pageSize));
+  const pages = getAttendancePdfPages(classes, pageSize);
+  const colW = (pageW - (margin * 2) - nameW) / pageSize;
 
-  for (let page = 0; page < pages; page += 1) {
+  pages.forEach((pageClasses, page) => {
     if (page > 0) doc.addPage("a4", "landscape");
-    const pageClasses = classes.slice(page * pageSize, page * pageSize + pageSize);
-    const colW = (pageW - (margin * 2) - nameW) / Math.max(pageClasses.length, 1);
     let y = margin;
 
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39);
     doc.setFontSize(13);
     doc.text("ADSA Workshop Attendance Register", margin, y + 4);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(`Page ${page + 1} / ${pages} · 30 classes per A4 landscape page`, margin, y + 9);
+    doc.setTextColor(71, 85, 105);
+    doc.setFontSize(7.5);
+    doc.text(`Page ${page + 1} / ${pages.length} · 30 class boxes per A4 landscape page`, margin, y + 8.8);
 
     y += titleH;
     doc.setFillColor(224, 242, 254);
     doc.rect(margin, y, pageW - margin * 2, headerH, "F");
     doc.setDrawColor(148, 163, 184);
+    doc.setLineWidth(0.16);
     doc.rect(margin, y, nameW, headerH);
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39);
     doc.setFontSize(7);
-    doc.text("Student Name", margin + 2, y + 7);
+    doc.text("Student Name", margin + 1.5, y + 6.5);
 
     pageClasses.forEach((cls, index) => {
       const x = margin + nameW + index * colW;
       doc.rect(x, y, colW, headerH);
-      doc.setFontSize(5.2);
-      const label = String(cls.classDate || `Class ${page * pageSize + index + 1}`).slice(0, 10);
-      doc.text(label, x + 0.8, y + 5.5, { maxWidth: colW - 1 });
-      if (cls.time || cls.title) {
-        doc.setFontSize(4.5);
-        doc.text(String(cls.time || cls.title || "").slice(0, 12), x + 0.8, y + 9.5, { maxWidth: colW - 1 });
+      if (cls.classDate) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(4.8);
+        doc.setTextColor(17, 24, 39);
+        doc.text(String(cls.classDate).slice(0, 10), x + colW / 2, y + 6, { align: "center", maxWidth: colW - 0.8 });
       }
     });
 
@@ -2670,33 +2690,32 @@ function downloadAttendancePdf() {
       doc.setFillColor(255, 255, 255);
       doc.rect(margin, y, nameW, rowH);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.2);
-      doc.text(String(student.name || "Student").slice(0, 26), margin + 1.2, y + 2.4, { maxWidth: nameW - 2 });
+      doc.setTextColor(17, 24, 39);
+      doc.setFontSize(5.8);
+      doc.text(String(student.name || "Student").slice(0, 26), margin + 1, y + 2.25, { maxWidth: nameW - 2 });
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(5.2);
-      doc.text(String(student.studentId || "").slice(0, 18), margin + 1.2, y + 5, { maxWidth: nameW - 2 });
+      doc.setTextColor(71, 85, 105);
+      doc.setFontSize(4.8);
+      doc.text(String(student.studentId || "").slice(0, 18), margin + 1, y + 4.7, { maxWidth: nameW - 2 });
 
       pageClasses.forEach((cls, index) => {
         const x = margin + nameW + index * colW;
-        const status = (cls.records || {})[student.studentId] || "not-marked";
-        if (status === "present") {
-          doc.setFillColor(220, 252, 231);
-          doc.rect(x, y, colW, rowH, "F");
-        } else if (status === "absent") {
-          doc.setFillColor(254, 226, 226);
-          doc.rect(x, y, colW, rowH, "F");
-        }
+        const status = cls.isBlank ? "not-marked" : ((cls.records || {})[student.studentId] || "not-marked");
+        doc.setFillColor(255, 255, 255);
+        doc.rect(x, y, colW, rowH, "F");
         doc.rect(x, y, colW, rowH);
         const label = attendancePdfStatusLabel(status);
         if (label) {
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(6.5);
-          doc.text(label, x + colW / 2, y + 3.8, { align: "center" });
+          doc.setFontSize(6.2);
+          doc.setTextColor(status === "present" ? 22 : 153, status === "present" ? 101 : 27, status === "present" ? 52 : 27);
+          doc.text(label, x + colW / 2, y + 3.55, { align: "center" });
+          doc.setTextColor(17, 24, 39);
         }
       });
       y += rowH;
     });
-  }
+  });
 
   doc.save(`ADSA-Attendance-Register-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
