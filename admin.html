@@ -280,6 +280,7 @@
           <button class="btn mini soft" type="button" id="attendancePrevPage">← Previous 30</button>
           <span id="attendancePageInfo">Page 1</span>
           <button class="btn mini soft" type="button" id="attendanceNextPage">Next 30 →</button>
+          <button class="btn mini ghost" type="button" id="downloadAttendancePdfBtn">Download PDF</button>
           <button class="btn mini blue-btn" type="button" id="saveAttendanceRegisterBtn" data-admin-save-attendance-register>Save Register</button>
         </div>
       </div>
@@ -304,6 +305,7 @@
       revealItems.forEach((item) => observer.observe(item));
     });
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

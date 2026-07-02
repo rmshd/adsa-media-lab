@@ -837,19 +837,36 @@ async function loadPublicTutorials() {
   }
 }
 
+
+function tutorialCategoryIcon(category = "Tutorial") {
+  const map = {
+    Illustrator: "🎨",
+    Photoshop: "🖼️",
+    "Premiere Pro": "🎬",
+    "InDesign": "📘",
+    "After Effects": "✨",
+    Blender: "🧊",
+    Coding: "💻",
+    "Office Apps": "📊"
+  };
+  return map[category] || "▶️";
+}
+
+function tutorialCategoriesFromCache(tutorials = []) {
+  const preferred = ["Illustrator", "Photoshop", "Premiere Pro", "InDesign", "After Effects", "Blender", "Coding", "Office Apps"];
+  const available = new Set(tutorials.map((item) => item.category || "Other"));
+  return preferred.filter((cat) => available.has(cat)).concat([...available].filter((cat) => !preferred.includes(cat)));
+}
+
 function renderPublicTutorials() {
   const container = $("#publicTutorials");
   if (!container) return;
   const category = $("#tutorialCategoryFilter")?.value || "all";
   const search = ($("#tutorialSearch")?.value || "").toLowerCase().trim();
 
-  let tutorials = tutorialCache.filter((item) => item.access === "public");
-  if (category !== "all") tutorials = tutorials.filter((item) => item.category === category);
-  if (search) {
-    tutorials = tutorials.filter((item) => [item.title, item.category, item.level, item.language].join(" ").toLowerCase().includes(search));
-  }
+  const publicTutorials = tutorialCache.filter((item) => item.access === "public");
 
-  if (!tutorials.length) {
+  if (!publicTutorials.length) {
     container.innerHTML = `
       <article class="tutorial-card demo-card reveal-card is-visible">
         <div class="tutorial-thumb blue-thumb">YT</div>
@@ -864,23 +881,74 @@ function renderPublicTutorials() {
     return;
   }
 
-  container.innerHTML = tutorials.map((tutorial) => {
-    const thumb = tutorial.thumbnail || thumbnailFromYoutube(tutorial.youtubeLink);
-    return `
-      <article class="tutorial-card reveal-card is-visible">
-        <div class="tutorial-thumb image-thumb">
-          ${thumb ? `<img src="${escapeHTML(thumb)}" alt="${escapeHTML(tutorial.title)} thumbnail" loading="lazy">` : `<span>${escapeHTML((tutorial.category || "YT").slice(0, 2))}</span>`}
-        </div>
+  // Default view: category folders only, so page height stays clean.
+  if (category === "all" && !search) {
+    const categories = tutorialCategoriesFromCache(publicTutorials);
+    container.innerHTML = categories.map((cat, index) => {
+      const count = publicTutorials.filter((item) => (item.category || "Other") === cat).length;
+      return `
+        <button class="resource-folder-card tutorial-folder-card reveal-card is-visible" type="button" data-tutorial-folder="${escapeHTML(cat)}" style="--folder-index:${index}">
+          <span class="folder-3d-icon">${tutorialCategoryIcon(cat)}</span>
+          <div>
+            <strong>${escapeHTML(cat)}</strong>
+            <small>${count} tutorial${count === 1 ? "" : "s"}</small>
+          </div>
+          <em>Open</em>
+        </button>
+      `;
+    }).join("");
+    return;
+  }
+
+  let tutorials = publicTutorials;
+  if (category !== "all") tutorials = tutorials.filter((item) => item.category === category);
+  if (search) {
+    tutorials = tutorials.filter((item) => [item.title, item.category, item.level, item.language].join(" ").toLowerCase().includes(search));
+  }
+
+  if (!tutorials.length) {
+    container.innerHTML = `
+      <div class="resource-detail-head">
+        <button class="btn mini soft" type="button" data-back-tutorial-folders>← Back to folders</button>
+        <span>No tutorials found</span>
+      </div>
+      <article class="tutorial-card demo-card reveal-card is-visible">
+        <div class="tutorial-thumb blue-thumb">YT</div>
         <div class="tutorial-body">
-          <div class="tag-pair"><span>${escapeHTML(tutorial.level || "Beginner")}</span><span>${escapeHTML(tutorial.language || "Malayalam")}</span></div>
-          <h3>${escapeHTML(tutorial.title)}</h3>
-          <p>${escapeHTML(tutorial.category || "Tutorial")}</p>
-          <a href="${escapeHTML(tutorial.youtubeLink)}" target="_blank" rel="noopener" class="btn mini blue-btn">Watch</a>
+          <h3>No matching tutorials</h3>
+          <p>Search/category മാറ്റി വീണ്ടും നോക്കുക.</p>
         </div>
       </article>
     `;
-  }).join("");
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="resource-detail-head">
+      <button class="btn mini soft" type="button" data-back-tutorial-folders>← Back to folders</button>
+      <span>${escapeHTML(category === "all" ? "Search Results" : category)} · ${tutorials.length} tutorial${tutorials.length === 1 ? "" : "s"}</span>
+    </div>
+    ${tutorials.map((tutorial) => {
+      const thumb = tutorial.thumbnail || thumbnailFromYoutube(tutorial.youtubeLink);
+      return `
+        <article class="tutorial-card reveal-card is-visible">
+          <div class="tutorial-thumb image-thumb">
+            ${thumb ? `<img src="${escapeHTML(thumb)}" alt="${escapeHTML(tutorial.title)} thumbnail" loading="lazy">` : `<span>${escapeHTML((tutorial.category || "YT").slice(0, 2))}</span>`}
+          </div>
+          <div class="tutorial-body">
+            <div class="tag-pair"><span>${escapeHTML(tutorial.level || "Beginner")}</span><span>${escapeHTML(tutorial.language || "Malayalam")}</span></div>
+            <h3>${escapeHTML(tutorial.title)}</h3>
+            <p>${escapeHTML(tutorial.category || "Tutorial")}</p>
+            <a href="${escapeHTML(tutorial.youtubeLink)}" target="_blank" rel="noopener" class="btn mini blue-btn">Watch</a>
+          </div>
+        </article>
+      `;
+    }).join("")}
+  `;
 }
+
+
+$("#tutorialCategoryFilter")?.addEventListener("change", renderPublicTutorials);
 
 $("#tutorialCategoryFilter")?.addEventListener("change", renderPublicTutorials);
 $("#tutorialSearch")?.addEventListener("input", renderPublicTutorials);
@@ -1078,6 +1146,26 @@ async function loadPublicAssets() {
   }
 }
 
+
+function assetCategoryIcon(category = "Asset") {
+  const map = {
+    "Model Posters": "🖌️",
+    "Background PNGs": "🌄",
+    "Fonts": "🔤",
+    "PNG Elements": "🧩",
+    "Practice Files": "📦",
+    "Design Models": "📐",
+    "Other": "💎"
+  };
+  return map[category] || "📁";
+}
+
+function assetCategoriesFromCache(assets = []) {
+  const preferred = ["Model Posters", "Background PNGs", "Fonts", "PNG Elements", "Practice Files", "Design Models", "Other"];
+  const available = new Set(assets.map((asset) => asset.category || "Other"));
+  return preferred.filter((cat) => available.has(cat)).concat([...available].filter((cat) => !preferred.includes(cat)));
+}
+
 function renderPublicAssets() {
   const container = $("#assetGrid");
   if (!container) return;
@@ -1090,13 +1178,7 @@ function renderPublicAssets() {
     fontBar.classList.toggle("hidden", !(hasUploadedFonts && (category === "all" || category === "Fonts")));
   }
 
-  let assets = assetCache;
-  if (category !== "all") assets = assets.filter((asset) => asset.category === category);
-  if (search) {
-    assets = assets.filter((asset) => [asset.title, asset.fontName, asset.category, asset.description, asset.originalName].join(" ").toLowerCase().includes(search));
-  }
-
-  if (!assets.length) {
+  if (!assetCache.length) {
     container.innerHTML = `
       <article class="asset-card demo-card reveal-card is-visible">
         <div class="asset-preview empty-asset-preview">
@@ -1115,27 +1197,80 @@ function renderPublicAssets() {
     return;
   }
 
-  container.innerHTML = assets.map((asset) => {
-    const displayTitle = isAssetFont(asset) ? getFontDisplayName(asset) : (asset.title || asset.originalName || "Design Asset");
-    const meta = isAssetFont(asset) && asset.fontName ? `Detected font · ${asset.size ? formatSize(asset.size) : "File"}` : (asset.size ? formatSize(asset.size) : asset.externalLink ? "External link" : "File");
-    return `
-      <article class="asset-card preview-asset-card reveal-card is-visible">
-        ${assetPreviewHTML(asset)}
-        <div class="asset-body">
-          <span class="asset-type">${escapeHTML(asset.category || "Asset")}</span>
-          <h3>${escapeHTML(displayTitle)}</h3>
-          <p>${escapeHTML(asset.description || asset.originalName || "Useful resource for designers")}</p>
-          <div class="asset-meta-line">${escapeHTML(meta)}</div>
-          <div class="asset-actions">
-            <a class="btn mini blue-btn" href="${assetActionUrl(asset, false)}" target="_blank" rel="noopener">Preview</a>
-            <a class="btn mini soft" href="${assetActionUrl(asset, true)}" target="_blank" rel="noopener">Download</a>
+  // Default view: special folder cards only. Items open only after category click/search.
+  if (category === "all" && !search) {
+    const categories = assetCategoriesFromCache(assetCache);
+    container.innerHTML = categories.map((cat, index) => {
+      const count = assetCache.filter((asset) => (asset.category || "Other") === cat).length;
+      const fontsNote = cat === "Fonts" && hasUploadedFonts ? `<a class="btn mini blue-btn folder-zip-link" data-fonts-zip-link href="#">ZIP</a>` : "";
+      return `
+        <button class="resource-folder-card asset-folder-card reveal-card is-visible" type="button" data-asset-folder="${escapeHTML(cat)}" style="--folder-index:${index}">
+          <span class="folder-3d-icon">${assetCategoryIcon(cat)}</span>
+          <div>
+            <strong>${escapeHTML(cat)}</strong>
+            <small>${count} resource${count === 1 ? "" : "s"}</small>
           </div>
+          <em>Open</em>
+          ${fontsNote}
+        </button>
+      `;
+    }).join("");
+    setupFontDownloadLinks();
+    return;
+  }
+
+  let assets = assetCache;
+  if (category !== "all") assets = assets.filter((asset) => asset.category === category);
+  if (search) {
+    assets = assets.filter((asset) => [asset.title, asset.fontName, asset.category, asset.description, asset.originalName].join(" ").toLowerCase().includes(search));
+  }
+
+  if (!assets.length) {
+    container.innerHTML = `
+      <div class="resource-detail-head">
+        <button class="btn mini soft" type="button" data-back-asset-folders>← Back to folders</button>
+        <span>No assets found</span>
+      </div>
+      <article class="asset-card demo-card reveal-card is-visible">
+        <div class="asset-preview empty-asset-preview">
+          <div class="file-preview-badge">?</div>
+          <strong>No matching assets</strong>
+          <small>Search/category മാറ്റി വീണ്ടും നോക്കുക.</small>
         </div>
       </article>
     `;
-  }).join("");
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="resource-detail-head">
+      <button class="btn mini soft" type="button" data-back-asset-folders>← Back to folders</button>
+      <span>${escapeHTML(category === "all" ? "Search Results" : category)} · ${assets.length} resource${assets.length === 1 ? "" : "s"}</span>
+    </div>
+    ${assets.map((asset) => {
+      const displayTitle = isAssetFont(asset) ? getFontDisplayName(asset) : (asset.title || asset.originalName || "Design Asset");
+      const meta = isAssetFont(asset) && asset.fontName ? `Detected font · ${asset.size ? formatSize(asset.size) : "File"}` : (asset.size ? formatSize(asset.size) : asset.externalLink ? "External link" : "File");
+      return `
+        <article class="asset-card preview-asset-card reveal-card is-visible">
+          ${assetPreviewHTML(asset)}
+          <div class="asset-body">
+            <span class="asset-type">${escapeHTML(asset.category || "Asset")}</span>
+            <h3>${escapeHTML(displayTitle)}</h3>
+            <p>${escapeHTML(asset.description || asset.originalName || "Useful resource for designers")}</p>
+            <div class="asset-meta-line">${escapeHTML(meta)}</div>
+            <div class="asset-actions">
+              <a class="btn mini blue-btn" href="${assetActionUrl(asset, false)}" target="_blank" rel="noopener">Preview</a>
+              <a class="btn mini soft" href="${assetActionUrl(asset, true)}" target="_blank" rel="noopener">Download</a>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join("")}
+  `;
 }
 
+
+$("#assetCategoryFilter")?.addEventListener("change", renderPublicAssets);
 
 $("#assetCategoryFilter")?.addEventListener("change", renderPublicAssets);
 $("#assetSearch")?.addEventListener("input", renderPublicAssets);
@@ -1912,23 +2047,86 @@ function renderWorkshopCertificate(certificate = {}) {
   }
 }
 
+
+function normalizeNotificationTimestamp(item = {}) {
+  return Number(item.createdAt || item.updatedAt || item.publishedAt || item.created || 0);
+}
+
+function buildWorkshopFallbackNotifications(source = {}) {
+  const maxAge = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const items = [];
+
+  (source.assignments || []).forEach((assignment) => {
+    const stamp = normalizeNotificationTimestamp(assignment);
+    if (stamp && now - stamp > maxAge) return;
+    // If timestamp is missing, still announce active assignments with upcoming due date.
+    const due = assignment.dueDate ? new Date(`${assignment.dueDate}T23:59:00`).getTime() : 0;
+    if (!stamp && due && due < now) return;
+    items.push({
+      type: "assignment",
+      title: assignment.title || "New Assignment",
+      message: `${workshopCategoryLabel(assignment.category)}${assignment.dueDate ? ` · Due ${assignment.dueDate}` : ""}`,
+      createdAt: stamp || now
+    });
+  });
+
+  (source.attendance || source.classes || []).forEach((cls) => {
+    const stamp = normalizeNotificationTimestamp(cls);
+    if (stamp && now - stamp > maxAge) return;
+    const classTime = cls.classDate ? new Date(`${cls.classDate}T23:59:00`).getTime() : 0;
+    if (!stamp && classTime && classTime < now - maxAge) return;
+    items.push({
+      type: "class",
+      title: cls.title || "Workshop Class",
+      message: `${cls.classDate || "Class date added"}${cls.time ? ` · ${cls.time}` : ""}${cls.topic ? ` · ${cls.topic}` : ""}`,
+      createdAt: stamp || classTime || now
+    });
+  });
+
+  return items
+    .filter((item) => !item.createdAt || now - Number(item.createdAt) <= maxAge || item.type === "class")
+    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+    .slice(0, 12);
+}
+
 function renderWorkshopNotifications(notifications = []) {
   const btn = $("#workshopNotificationBtn");
   const count = $("#workshopNotificationCount");
   const list = $("#workshopNotificationList");
   if (!btn || !count || !list) return;
-  const items = notifications || [];
+
+  const maxAge = 24 * 60 * 60 * 1000;
+  const freshServerItems = (notifications || []).filter((item) => {
+    const stamp = normalizeNotificationTimestamp(item);
+    return !stamp || Date.now() - stamp <= maxAge;
+  });
+
+  const items = freshServerItems.length ? freshServerItems : buildWorkshopFallbackNotifications(workshopDashboardCache || {});
   count.textContent = String(items.length);
   count.classList.toggle("hidden", !items.length);
   btn.classList.toggle("has-notifications", Boolean(items.length));
   btn.classList.toggle("has-new", Boolean(items.length));
+
   if (!items.length) {
-    list.innerHTML = `<div class="compact-empty-state"><strong>No new notifications</strong><span>New assignments/classes add ചെയ്താൽ 24 hours വരെ ഇവിടെ കാണും.</span></div>`;
+    list.innerHTML = `
+      <div class="compact-empty-state notification-announcement">
+        <strong>No fresh updates now</strong>
+        <span>New assignments and class announcements will appear here for 24 hours.</span>
+      </div>
+      <div class="notification-item type-info">
+        <span class="notification-type-icon">📢</span>
+        <div>
+          <strong>Workshop Notice Board</strong>
+          <small>Admin add ചെയ്യുന്ന assignment / class date ഇവിടെ update ആയി കാണും.</small>
+        </div>
+      </div>
+    `;
     return;
   }
   list.innerHTML = items.map((item) => `
     <div class="notification-item type-${escapeHTML(item.type || "info")}">
-      <span class="notification-type-icon">${item.type === "class" ? "📅" : "📝"}</span>
+      <span class="notification-type-icon">${item.type === "class" ? "📅" : item.type === "assignment" ? "📝" : "📢"}</span>
       <div>
         <strong>${escapeHTML(item.title || "Notification")}</strong>
         <small>${escapeHTML(item.message || "")} · ${escapeHTML(timeAgo(item.createdAt))}</small>
@@ -1936,6 +2134,9 @@ function renderWorkshopNotifications(notifications = []) {
     </div>
   `).join("");
 }
+
+
+// -------------------- ADMIN: WORKSHOP MANAGEMENT --------------------
 
 // -------------------- ADMIN: WORKSHOP MANAGEMENT --------------------
 async function addWorkshopStudent(event) {
@@ -2330,6 +2531,177 @@ function updateAttendancePageControls() {
   if (next) next.disabled = attendancePageIndex >= totalPages - 1;
 }
 
+
+function attendancePdfStatusLabel(status = "not-marked") {
+  if (status === "present") return "P";
+  if (status === "absent") return "A";
+  return "";
+}
+
+function buildAttendancePrintableHtml() {
+  const { classes, students } = attendanceRegisterCache;
+  const pageSize = ATTENDANCE_PAGE_SIZE;
+  const pages = [];
+  const totalPages = Math.max(1, Math.ceil(classes.length / pageSize));
+  for (let page = 0; page < totalPages; page += 1) {
+    const pageClasses = classes.slice(page * pageSize, page * pageSize + pageSize);
+    pages.push(`
+      <section class="print-page">
+        <h1>ADSA Workshop Attendance Register</h1>
+        <p>Page ${page + 1} / ${totalPages} · ${pageClasses.length} class date(s)</p>
+        <table>
+          <thead>
+            <tr>
+              <th class="name-col">Student Name</th>
+              ${pageClasses.map((cls, index) => `<th><span>${escapeHTML(cls.classDate || `Class ${page * pageSize + index + 1}`)}</span></th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${students.map((student) => `
+              <tr>
+                <td class="name-col"><strong>${escapeHTML(student.name || "Student")}</strong><br><small>${escapeHTML(student.studentId || "")}</small></td>
+                ${pageClasses.map((cls) => {
+                  const status = (cls.records || {})[student.studentId] || "not-marked";
+                  return `<td class="${status === "present" ? "present" : status === "absent" ? "absent" : ""}">${escapeHTML(attendancePdfStatusLabel(status))}</td>`;
+                }).join("")}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </section>
+    `);
+  }
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>ADSA Attendance Register</title>
+      <style>
+        @page { size: A4 landscape; margin: 7mm; }
+        body { margin: 0; font-family: Arial, sans-serif; color: #111827; }
+        .print-page { page-break-after: always; }
+        .print-page:last-child { page-break-after: auto; }
+        h1 { margin: 0 0 2mm; font-size: 15px; }
+        p { margin: 0 0 3mm; font-size: 9px; color: #475569; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #9ca3af; text-align: center; padding: 1mm; font-size: 7px; height: 7mm; }
+        th { background: #e0f2fe; font-weight: 800; }
+        .name-col { width: 42mm; text-align: left; }
+        small { font-size: 6px; color: #475569; }
+        td.present { background: #dcfce7; color: #166534; font-weight: 800; }
+        td.absent { background: #fee2e2; color: #991b1b; font-weight: 800; }
+      </style>
+    </head>
+    <body>${pages.join("")}</body>
+    </html>
+  `;
+}
+
+function downloadAttendancePdf() {
+  const { classes, students } = attendanceRegisterCache;
+  if (!students.length || !classes.length) {
+    alert("Attendance PDF ഉണ്ടാക്കാൻ students/classes വേണം.");
+    return;
+  }
+
+  const jsPDF = window.jspdf?.jsPDF;
+  if (!jsPDF) {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Popup blocked. Browser popup allow ചെയ്യുക.");
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(buildAttendancePrintableHtml());
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 500);
+    return;
+  }
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageW = 297;
+  const pageH = 210;
+  const margin = 7;
+  const titleH = 13;
+  const rowH = 5.8;
+  const headerH = 12;
+  const nameW = 42;
+  const pageSize = ATTENDANCE_PAGE_SIZE;
+  const pages = Math.max(1, Math.ceil(classes.length / pageSize));
+
+  for (let page = 0; page < pages; page += 1) {
+    if (page > 0) doc.addPage("a4", "landscape");
+    const pageClasses = classes.slice(page * pageSize, page * pageSize + pageSize);
+    const colW = (pageW - (margin * 2) - nameW) / Math.max(pageClasses.length, 1);
+    let y = margin;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("ADSA Workshop Attendance Register", margin, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Page ${page + 1} / ${pages} · 30 classes per A4 landscape page`, margin, y + 9);
+
+    y += titleH;
+    doc.setFillColor(224, 242, 254);
+    doc.rect(margin, y, pageW - margin * 2, headerH, "F");
+    doc.setDrawColor(148, 163, 184);
+    doc.rect(margin, y, nameW, headerH);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("Student Name", margin + 2, y + 7);
+
+    pageClasses.forEach((cls, index) => {
+      const x = margin + nameW + index * colW;
+      doc.rect(x, y, colW, headerH);
+      doc.setFontSize(5.2);
+      const label = String(cls.classDate || `Class ${page * pageSize + index + 1}`).slice(0, 10);
+      doc.text(label, x + 0.8, y + 5.5, { maxWidth: colW - 1 });
+      if (cls.time || cls.title) {
+        doc.setFontSize(4.5);
+        doc.text(String(cls.time || cls.title || "").slice(0, 12), x + 0.8, y + 9.5, { maxWidth: colW - 1 });
+      }
+    });
+
+    y += headerH;
+    students.forEach((student) => {
+      if (y + rowH > pageH - margin) return;
+      doc.setFillColor(255, 255, 255);
+      doc.rect(margin, y, nameW, rowH);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.2);
+      doc.text(String(student.name || "Student").slice(0, 26), margin + 1.2, y + 2.4, { maxWidth: nameW - 2 });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(5.2);
+      doc.text(String(student.studentId || "").slice(0, 18), margin + 1.2, y + 5, { maxWidth: nameW - 2 });
+
+      pageClasses.forEach((cls, index) => {
+        const x = margin + nameW + index * colW;
+        const status = (cls.records || {})[student.studentId] || "not-marked";
+        if (status === "present") {
+          doc.setFillColor(220, 252, 231);
+          doc.rect(x, y, colW, rowH, "F");
+        } else if (status === "absent") {
+          doc.setFillColor(254, 226, 226);
+          doc.rect(x, y, colW, rowH, "F");
+        }
+        doc.rect(x, y, colW, rowH);
+        const label = attendancePdfStatusLabel(status);
+        if (label) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6.5);
+          doc.text(label, x + colW / 2, y + 3.8, { align: "center" });
+        }
+      });
+      y += rowH;
+    });
+  }
+
+  doc.save(`ADSA-Attendance-Register-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+
 function setupAttendanceRegisterModal() {
   const modal = $("#attendanceRegisterModal");
   const openBtn = $("#openAttendanceRegisterBtn");
@@ -2360,6 +2732,7 @@ function setupAttendanceRegisterModal() {
     attendancePageIndex = Math.min(totalPages - 1, attendancePageIndex + 1);
     renderAttendanceRegisterTable();
   });
+  $("#downloadAttendancePdfBtn")?.addEventListener("click", downloadAttendancePdf);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modal && !modal.classList.contains("hidden")) closeModal();
   });
@@ -2756,6 +3129,50 @@ window.addEventListener("DOMContentLoaded", () => {
       console.error(error);
       alert(error.message || "Workshop admin action failed.");
     });
+  });
+
+
+  document.addEventListener("click", (event) => {
+    const assetFolder = event.target.closest?.("[data-asset-folder]");
+    if (assetFolder) {
+      event.preventDefault();
+      const select = $("#assetCategoryFilter");
+      if (select) select.value = assetFolder.getAttribute("data-asset-folder") || "all";
+      renderPublicAssets();
+      $("#assetGrid")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    const backAsset = event.target.closest?.("[data-back-asset-folders]");
+    if (backAsset) {
+      event.preventDefault();
+      const select = $("#assetCategoryFilter");
+      const search = $("#assetSearch");
+      if (select) select.value = "all";
+      if (search) search.value = "";
+      renderPublicAssets();
+      return;
+    }
+
+    const tutorialFolder = event.target.closest?.("[data-tutorial-folder]");
+    if (tutorialFolder) {
+      event.preventDefault();
+      const select = $("#tutorialCategoryFilter");
+      if (select) select.value = tutorialFolder.getAttribute("data-tutorial-folder") || "all";
+      renderPublicTutorials();
+      $("#publicTutorials")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    const backTutorial = event.target.closest?.("[data-back-tutorial-folders]");
+    if (backTutorial) {
+      event.preventDefault();
+      const select = $("#tutorialCategoryFilter");
+      const search = $("#tutorialSearch");
+      if (select) select.value = "all";
+      if (search) search.value = "";
+      renderPublicTutorials();
+    }
   });
 
   setupWorksModal();
