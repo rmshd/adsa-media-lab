@@ -3471,3 +3471,386 @@ body.modal-open {
   border-color: rgba(132,204,22,.25);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 35px rgba(132,204,22,.10);
 }
+
+/* -------------------------------------------------------
+   Performance-safe smooth animation + responsive login fix
+   Added: light scroll reveal, soft hover, modal motion, mobile nav buttons
+------------------------------------------------------- */
+:root {
+  --motion-soft: cubic-bezier(.16, 1, .3, 1);
+  --motion-fast: cubic-bezier(.2, .8, .2, 1);
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(10px);
+  opacity: .42;
+  will-change: transform;
+}
+
+body::before {
+  width: 340px;
+  height: 340px;
+  left: -110px;
+  top: 18%;
+  background: radial-gradient(circle, rgba(56, 189, 248, .34), rgba(56, 189, 248, 0) 68%);
+  animation: adsaFloatBlob 18s var(--motion-soft) infinite alternate;
+}
+
+body::after {
+  width: 300px;
+  height: 300px;
+  right: -90px;
+  bottom: 10%;
+  background: radial-gradient(circle, rgba(190, 242, 100, .30), rgba(190, 242, 100, 0) 70%);
+  animation: adsaFloatBlobAlt 22s var(--motion-soft) infinite alternate;
+}
+
+@keyframes adsaFloatBlob {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(36px, 42px, 0) scale(1.08); }
+}
+
+@keyframes adsaFloatBlobAlt {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-38px, -34px, 0) scale(1.07); }
+}
+
+/* Auto-applied by app.js */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translate3d(0, 26px, 0) scale(.992);
+  filter: blur(8px);
+  transition:
+    opacity 720ms var(--motion-soft) var(--anim-delay, 0ms),
+    transform 720ms var(--motion-soft) var(--anim-delay, 0ms),
+    filter 720ms var(--motion-soft) var(--anim-delay, 0ms);
+  will-change: opacity, transform, filter;
+}
+
+.animate-on-scroll.visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: blur(0);
+}
+
+.animate-stagger > * {
+  transition-delay: var(--anim-delay, 0ms);
+}
+
+.section-panel,
+.tutorials-panel,
+.student-works-board,
+.work-upload-panel,
+.print-card,
+.form-card,
+.asset-card,
+.tutorial-card,
+.workshop-premium-card,
+.admin-panel-shell,
+.dashboard,
+.panel,
+.admin-stat-card,
+.student-progress-card,
+.submission-summary-card,
+.premium-certificate-card {
+  transition:
+    transform 260ms var(--motion-fast),
+    box-shadow 260ms var(--motion-fast),
+    border-color 260ms var(--motion-fast),
+    background 260ms var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .asset-card:hover,
+  .tutorial-card:hover,
+  .work-showcase-card:hover,
+  .workshop-track-card:hover,
+  .category-mini-card:hover,
+  .student-progress-card:hover,
+  .submission-summary-card:hover,
+  .premium-certificate-card:hover,
+  .admin-stat-card:hover {
+    transform: translate3d(0, -5px, 0);
+    box-shadow: 0 24px 58px rgba(37, 99, 235, .16);
+    border-color: rgba(56, 154, 242, .25);
+  }
+}
+
+.btn,
+button,
+.iphone-glass-btn,
+.iphone-glass-action {
+  transform: translateZ(0);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active,
+button:active,
+.iphone-glass-btn:active,
+.iphone-glass-action:active {
+  transform: scale(.98);
+}
+
+.iphone-glass-btn,
+.iphone-glass-action,
+.btn.primary,
+.btn.soft {
+  isolation: isolate;
+}
+
+.iphone-glass-btn::after,
+.iphone-glass-action::after,
+.btn.primary::after,
+.btn.soft::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,.36) 42%, transparent 62%);
+  transform: translateX(-125%);
+  opacity: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .iphone-glass-btn:hover::after,
+  .iphone-glass-action:hover::after,
+  .btn.primary:hover::after,
+  .btn.soft:hover::after {
+    animation: adsaButtonShine .9s var(--motion-soft) forwards;
+  }
+}
+
+@keyframes adsaButtonShine {
+  0% { opacity: 0; transform: translateX(-125%); }
+  20% { opacity: .8; }
+  100% { opacity: 0; transform: translateX(125%); }
+}
+
+/* Modal open/close smoothness */
+.modal,
+.work-viewer-modal,
+.workshop-modal,
+.attendance-modal,
+.submission-modal {
+  transition: opacity 260ms var(--motion-soft), backdrop-filter 260ms var(--motion-soft);
+}
+
+.modal:not(.hidden),
+.work-viewer-modal:not(.hidden),
+.workshop-modal:not(.hidden),
+.attendance-modal:not(.hidden),
+.submission-modal:not(.hidden) {
+  animation: adsaFadeIn 220ms var(--motion-soft) both;
+}
+
+.modal:not(.hidden) .modal-card,
+.work-viewer-modal:not(.hidden) .modal-card,
+.workshop-modal:not(.hidden) .modal-card,
+.attendance-modal:not(.hidden) .modal-card,
+.submission-modal:not(.hidden) .modal-card,
+.modal:not(.hidden) .modal-panel,
+.workshop-modal:not(.hidden) .modal-panel,
+.attendance-modal:not(.hidden) .modal-panel,
+.submission-modal:not(.hidden) .modal-panel {
+  animation: adsaModalPop 280ms var(--motion-soft) both;
+}
+
+@keyframes adsaFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes adsaModalPop {
+  from { opacity: 0; transform: translate3d(0, 16px, 0) scale(.97); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* Notification pulse only when there are new items */
+.notification-bell.has-new,
+#workshopNotificationBtn.has-new {
+  animation: adsaBellPulse 1.7s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(37,99,235,.22), 0 14px 32px rgba(37,99,235,.14);
+}
+
+@keyframes adsaBellPulse {
+  0%, 100% { transform: translateZ(0) scale(1); box-shadow: 0 0 0 0 rgba(37,99,235,.22), 0 14px 32px rgba(37,99,235,.14); }
+  50% { transform: translateZ(0) scale(1.035); box-shadow: 0 0 0 10px rgba(37,99,235,0), 0 16px 38px rgba(37,99,235,.2); }
+}
+
+/* Attendance click feedback */
+.attendance-cell,
+.attendance-status-cell,
+.attendance-mark-cell {
+  transition: transform 150ms var(--motion-fast), box-shadow 150ms var(--motion-fast), background-color 150ms var(--motion-fast);
+}
+
+.attendance-cell.just-changed,
+.attendance-status-cell.just-changed,
+.attendance-mark-cell.just-changed {
+  animation: adsaCellPop 220ms var(--motion-fast) both;
+}
+
+@keyframes adsaCellPop {
+  0% { transform: scale(.9); }
+  70% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Fix mobile top login buttons: never hide Admin/Student buttons */
+@media (max-width: 1040px) {
+  .site-header {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .site-header .brand {
+    min-width: 0;
+  }
+
+  .site-header .brand-text strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 190px;
+  }
+
+  .site-header .menu-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .top-login-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .admin-top-btn,
+  .student-top-btn,
+  .iphone-glass-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 12px !important;
+    font-size: .82rem !important;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .main-nav {
+    top: 140px;
+  }
+}
+
+@media (max-width: 720px) {
+  body::before,
+  body::after {
+    width: 220px;
+    height: 220px;
+    filter: blur(14px);
+    opacity: .28;
+    animation-duration: 26s;
+  }
+
+  .site-header {
+    padding: 10px;
+    border-radius: 20px;
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
+    font-size: .9rem;
+  }
+
+  .site-header .brand-text strong {
+    max-width: 155px;
+    font-size: 13px;
+  }
+
+  .top-login-actions {
+    gap: 7px;
+  }
+
+  .admin-top-btn,
+  .student-top-btn,
+  .iphone-glass-btn {
+    min-height: 39px;
+    padding: 9px 10px !important;
+    font-size: .78rem !important;
+    border-radius: 999px;
+  }
+
+  .main-nav {
+    top: 132px;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+  }
+
+  .workshop-premium-card,
+  .premium-workshop-shell,
+  .dashboard-grid,
+  .student-progress-grid,
+  .submission-summary-grid,
+  .mock-progress-grid,
+  .workshop-category-grid,
+  .workshop-track-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .workshop-mock-card,
+  .common-dashboard-preview,
+  .workshop-preview-card {
+    max-width: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 420px) {
+  .site-header .brand-text strong {
+    max-width: 120px;
+  }
+
+  .admin-top-btn,
+  .student-top-btn,
+  .iphone-glass-btn {
+    font-size: .72rem !important;
+    padding-inline: 8px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  body::before,
+  body::after,
+  .animate-on-scroll {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+#workshopNotificationBtn.has-notifications,
+.notification-bell.has-notifications {
+  animation: adsaBellPulse 1.7s ease-in-out infinite;
+}

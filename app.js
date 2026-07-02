@@ -1921,6 +1921,7 @@ function renderWorkshopNotifications(notifications = []) {
   count.textContent = String(items.length);
   count.classList.toggle("hidden", !items.length);
   btn.classList.toggle("has-notifications", Boolean(items.length));
+  btn.classList.toggle("has-new", Boolean(items.length));
   if (!items.length) {
     list.innerHTML = `<div class="compact-empty-state"><strong>No new notifications</strong><span>New assignments/classes add ചെയ്താൽ 24 hours വരെ ഇവിടെ കാണും.</span></div>`;
     return;
@@ -2622,6 +2623,83 @@ function setupWorkshopNotificationPanel() {
   });
 }
 
+
+
+// -------------------- PERFORMANCE SAFE UI ANIMATIONS --------------------
+function setupSmoothUiAnimations() {
+  const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReduced) {
+    document.documentElement.classList.add("reduce-motion");
+    return;
+  }
+
+  const revealSelector = [
+    ".reveal",
+    ".reveal-card",
+    ".section-panel",
+    ".tutorials-panel",
+    ".student-works-board",
+    ".work-upload-panel",
+    ".print-card",
+    ".form-card",
+    ".asset-card",
+    ".tutorial-card",
+    ".workshop-premium-card",
+    ".premium-workshop-shell",
+    ".admin-panel-shell",
+    ".dashboard",
+    ".panel",
+    ".admin-stat-card",
+    ".student-progress-card",
+    ".submission-summary-card",
+    ".premium-certificate-card",
+    ".workshop-track-card",
+    ".category-mini-card",
+    ".common-dashboard-preview"
+  ].join(",");
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("visible", "is-visible");
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+
+  const prepareElement = (element, index = 0) => {
+    if (!element || element.dataset.motionReady === "1") return;
+    element.dataset.motionReady = "1";
+    element.classList.add("animate-on-scroll");
+    element.style.setProperty("--anim-delay", `${Math.min(index % 6, 5) * 60}ms`);
+    observer.observe(element);
+  };
+
+  document.querySelectorAll(revealSelector).forEach((element, index) => prepareElement(element, index));
+
+  const mutationObserver = new MutationObserver((mutations) => {
+    let queue = [];
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (!(node instanceof HTMLElement)) return;
+        if (node.matches?.(revealSelector)) queue.push(node);
+        node.querySelectorAll?.(revealSelector).forEach((child) => queue.push(child));
+      });
+    });
+    queue.slice(0, 40).forEach((element, index) => prepareElement(element, index));
+  });
+
+  mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+  document.addEventListener("click", (event) => {
+    const attendanceCell = event.target.closest?.(".attendance-cell, .attendance-status-cell, .attendance-mark-cell, .attendance-toggle-cell");
+    if (!attendanceCell) return;
+    attendanceCell.classList.remove("just-changed");
+    void attendanceCell.offsetWidth;
+    attendanceCell.classList.add("just-changed");
+    window.setTimeout(() => attendanceCell.classList.remove("just-changed"), 260);
+  }, { passive: true });
+}
+
 // Connect after page loads
 function setupCompactStudentManagers() {
   const studentSearch = $("#workshopStudentSearch");
@@ -2635,6 +2713,7 @@ function setupCompactStudentManagers() {
 
 window.addEventListener("DOMContentLoaded", () => {
   setupUploadWidgets();
+  setupSmoothUiAnimations();
   setupCompactStudentManagers();
 
   const printForm = $("#printUploadForm");
