@@ -3428,3 +3428,46 @@ body.modal-open {
   opacity: .8;
 }
 .attendance-date-chip:hover em { opacity: 1; }
+
+/* Workshop common preview patch: no individual student details on main site */
+.workshop-common-preview {
+  overflow: hidden;
+}
+.workshop-common-preview::before {
+  content: "";
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  right: -90px;
+  top: -90px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(46,154,255,.28), rgba(46,154,255,0));
+  pointer-events: none;
+}
+.workshop-common-preview .common-head-row {
+  align-items: center;
+}
+.workshop-common-preview .common-head-row b {
+  color: #0f172a;
+  font-size: 1.04rem;
+}
+.workshop-common-preview .common-head-row small {
+  font-weight: 800;
+  color: #0f5fb8;
+}
+.workshop-common-preview .common-metric-grid i {
+  min-height: 76px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+}
+.workshop-common-preview .common-metric-grid b {
+  letter-spacing: -0.04em;
+}
+.workshop-common-preview .common-flow-card {
+  background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(224,242,254,.74));
+}
+.workshop-common-preview .common-badge-card {
+  border-color: rgba(132,204,22,.25);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 35px rgba(132,204,22,.10);
+}
