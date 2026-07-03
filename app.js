@@ -35,6 +35,42 @@ function formatTime(ms) {
   });
 }
 
+function formatDateOnly(value) {
+  if (!value) return "-";
+  const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function getAssignmentDueState(item = {}) {
+  if (!item.dueDate) return { className: "due-none", label: "No due date" };
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const due = new Date(`${item.dueDate}T00:00:00`).getTime();
+  if (!Number.isFinite(due)) return { className: "due-none", label: `Due ${item.dueDate}` };
+  const days = Math.round((due - today) / (24 * 60 * 60 * 1000));
+  if (days < 0) return { className: "due-overdue", label: "Due date passed" };
+  if (days === 0) return { className: "due-today", label: "Due today" };
+  if (days === 1) return { className: "due-soon", label: "Due tomorrow" };
+  if (days <= 3) return { className: "due-soon", label: `Due in ${days} days` };
+  return { className: "due-normal", label: `Due ${formatDateOnly(item.dueDate)}` };
+}
+
+function approvalLabel(status = "approved") {
+  const clean = String(status || "approved").toLowerCase();
+  if (clean === "pending") return "Pending Review";
+  if (clean === "rejected") return "Rejected";
+  return "Approved";
+}
+
+function approvalClass(status = "approved") {
+  const clean = String(status || "approved").toLowerCase();
+  if (clean === "pending") return "status-pending";
+  if (clean === "rejected") return "status-rejected";
+  return "status-approved";
+}
+
+
 function setMessage(selector, text, isError = false) {
   const element = $(selector);
   if (!element) return;
@@ -427,7 +463,7 @@ async function uploadStudentWork(event) {
 
     form.reset();
     setProgress("#workProgressWrap", "#workProgress", "#workProgressText", 100);
-    setMessage("#workMessage", "Work upload success. Student works folder-ൽ save ആയി.");
+    setMessage("#workMessage", "Work upload success. Admin approve ചെയ്താൽ public gallery-ൽ കാണും.");
     await loadStudentWorks();
     await refreshWorksModalIfOpen();
     setTimeout(() => hideProgress("#workProgressWrap", "#workProgress", "#workProgressText"), 1500);
@@ -1249,7 +1285,8 @@ function renderPublicAssets() {
     </div>
     ${assets.map((asset) => {
       const displayTitle = isAssetFont(asset) ? getFontDisplayName(asset) : (asset.title || asset.originalName || "Design Asset");
-      const meta = isAssetFont(asset) && asset.fontName ? `Detected font · ${asset.size ? formatSize(asset.size) : "File"}` : (asset.size ? formatSize(asset.size) : asset.externalLink ? "External link" : "File");
+      const downloadText = `${Number(asset.downloadCount || 0)} downloads`;
+      const meta = isAssetFont(asset) && asset.fontName ? `Detected font · ${asset.size ? formatSize(asset.size) : "File"} · ${downloadText}` : `${asset.size ? formatSize(asset.size) : asset.externalLink ? "External link" : "File"} · ${downloadText}`;
       return `
         <article class="asset-card preview-asset-card reveal-card is-visible">
           ${assetPreviewHTML(asset)}
@@ -1390,7 +1427,8 @@ async function loadAdminPanelData() {
     loadAdminWorkshopAssignments(),
     loadAdminWorkshopSubmissions(),
     loadAdminAttendanceClasses(),
-    loadAdminCertificates()
+    loadAdminCertificates(),
+    loadAdminAnnouncements()
   ]);
 }
 
@@ -1408,6 +1446,7 @@ async function loadAdminDashboardStats() {
     if ($("#statAssignments")) $("#statAssignments").textContent = s.activeAssignments ?? 0;
     if ($("#statAttendanceClasses")) $("#statAttendanceClasses").textContent = s.attendanceClasses ?? 0;
     if ($("#statCertificates")) $("#statCertificates").textContent = s.certificateEligible ?? 0;
+    if ($("#statAnnouncements")) $("#statAnnouncements").textContent = s.activeAnnouncements ?? 0;
     if ($("#statStorageUsed")) $("#statStorageUsed").textContent = formatSize(s.totalUploadStorageBytes || 0);
   } catch (error) {
     console.error(error);
@@ -1455,23 +1494,83 @@ async function loadAdminStudentWorks() {
       box.innerHTML = `<div class="list-item">Student works ഒന്നുമില്ല.</div>`;
       return;
     }
-    box.innerHTML = works.map((work) => `
-      <div class="list-item admin-file-item">
+    box.innerHTML = works.map((work) => {
+      const status = work.status || "approved";
+      return `
+      <div class="list-item admin-file-item work-approval-item ${approvalClass(status)}">
         <div>
-          <strong>${escapeHTML(work.title)}</strong>
+          <div class="inline-status-row">
+            <strong>${escapeHTML(work.title)}</strong>
+            <span class="status-badge ${approvalClass(status)}">${escapeHTML(approvalLabel(status))}</span>
+          </div>
           <span>${escapeHTML(work.studentName)} · ${escapeHTML(work.software || "-")} · ${escapeHTML(work.workType || "Work")} · ${formatSize(work.size)}</span>
           <small>${work.featured ? "Featured on home" : "Not featured"} · ${formatTime(work.uploadedAt)}</small>
         </div>
         <div class="list-actions">
           <button class="btn mini blue-btn" type="button" data-open-work="${work.id}">Preview</button>
-          <button class="btn mini soft" type="button" data-admin-feature-work="${work.id}" data-featured="${work.featured ? "false" : "true"}">${work.featured ? "Unfeature" : "Feature"}</button>
+          <button class="btn mini success-btn" type="button" data-admin-approve-work="${work.id}" data-status="approved">Approve</button>
+          <button class="btn mini warning-btn" type="button" data-admin-approve-work="${work.id}" data-status="pending">Pending</button>
+          <button class="btn mini soft" type="button" data-admin-feature-work="${work.id}" data-featured="${work.featured ? "false" : "true"}" ${status !== "approved" ? "disabled" : ""}>${work.featured ? "Unfeature" : "Feature"}</button>
+          <button class="btn mini danger-btn" type="button" data-admin-approve-work="${work.id}" data-status="rejected">Reject</button>
           <button class="btn mini danger-btn" type="button" data-admin-delete-work="${work.id}">Delete</button>
+        </div>
+      </div>`;
+    }).join("");
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = `<div class="list-item">Student works load failed: ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function addAdminAnnouncement(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = Object.fromEntries(new FormData(form).entries());
+  try {
+    setMessage("#announcementAdminMessage", "Publishing announcement...");
+    await adminFetch("/api/admin/workshop-announcements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    form.reset();
+    const category = form.querySelector('[name="category"]');
+    if (category) category.value = "All Categories";
+    setMessage("#announcementAdminMessage", "Announcement published. Student notification bell-ൽ 24 hours കാണും.");
+    await loadAdminAnnouncements();
+    await loadAdminDashboardStats();
+  } catch (error) {
+    console.error(error);
+    setMessage("#announcementAdminMessage", error.message || "Announcement add failed", true);
+  }
+}
+
+async function loadAdminAnnouncements() {
+  const box = $("#announcementAdminList");
+  if (!box) return;
+  try {
+    box.innerHTML = `<div class="list-item">Loading announcements...</div>`;
+    const result = await adminFetch("/api/admin/workshop-announcements");
+    const announcements = result.announcements || [];
+    if (!announcements.length) {
+      box.innerHTML = `<div class="list-item">Announcements ഒന്നുമില്ല.</div>`;
+      return;
+    }
+    box.innerHTML = announcements.map((item) => `
+      <div class="list-item admin-file-item announcement-admin-item">
+        <div>
+          <strong>${escapeHTML(item.title || "Announcement")}</strong>
+          <span>${escapeHTML(item.category || "All Categories")} · expires after 24 hours</span>
+          <small>${escapeHTML(item.message || "")} · ${formatTime(item.createdAt)}</small>
+        </div>
+        <div class="list-actions">
+          <button class="btn mini danger-btn" type="button" data-admin-delete-announcement="${item.id}">Delete</button>
         </div>
       </div>
     `).join("");
   } catch (error) {
     console.error(error);
-    box.innerHTML = `<div class="list-item">Student works load failed: ${escapeHTML(error.message)}</div>`;
+    box.innerHTML = `<div class="list-item">Announcements load failed: ${escapeHTML(error.message)}</div>`;
   }
 }
 
@@ -1587,7 +1686,7 @@ async function loadAdminAssets() {
       <div class="list-item admin-file-item">
         <div>
           <strong>${escapeHTML(isAssetFont(asset) ? getFontDisplayName(asset) : asset.title)}</strong>
-          <span>${escapeHTML(asset.category || "Asset")} · ${asset.size ? formatSize(asset.size) : "External link"}</span>
+          <span>${escapeHTML(asset.category || "Asset")} · ${asset.size ? formatSize(asset.size) : "External link"} · ${Number(asset.downloadCount || 0)} downloads</span>
           <small>${escapeHTML(asset.fontName ? `Font name: ${asset.fontName}` : (asset.originalName || asset.externalLink || ""))} · ${formatTime(asset.createdAt)}</small>
         </div>
         <div class="list-actions">
@@ -1624,6 +1723,22 @@ async function handleAdminActions(event) {
     return;
   }
 
+  const approvalBtn = event.target.closest?.("[data-admin-approve-work]");
+  if (approvalBtn) {
+    const workId = approvalBtn.getAttribute("data-admin-approve-work");
+    const status = approvalBtn.getAttribute("data-status") || "approved";
+    await adminFetch(`/api/admin/student-works/${workId}/approval`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status })
+    });
+    await loadStudentWorks();
+    await refreshWorksModalIfOpen();
+    await loadAdminStudentWorks();
+    await loadAdminDashboardStats();
+    return;
+  }
+
   const featureBtn = event.target.closest?.("[data-admin-feature-work]");
   if (featureBtn) {
     const workId = featureBtn.getAttribute("data-admin-feature-work");
@@ -1645,6 +1760,15 @@ async function handleAdminActions(event) {
     await adminFetch(`/api/admin/assets/${assetId}`, { method: "DELETE" });
     await loadAdminAssets();
     await loadPublicAssets();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const announcementId = event.target.closest?.("[data-admin-delete-announcement]")?.getAttribute("data-admin-delete-announcement");
+  if (announcementId) {
+    if (!confirm("ഈ announcement delete ചെയ്യണോ?")) return;
+    await adminFetch(`/api/admin/workshop-announcements/${announcementId}`, { method: "DELETE" });
+    await loadAdminAnnouncements();
     await loadAdminDashboardStats();
     return;
   }
@@ -1869,16 +1993,18 @@ function renderWorkshopAssignments(assignments = []) {
     list.innerHTML = `<div class="list-item">ഈ category-ൽ active assignments ഇല്ല. Admin add ചെയ്താൽ ഇവിടെ കാണും.</div>`;
     return;
   }
-  list.innerHTML = filteredAssignments.map((item) => `
-    <div class="assignment-card category-assignment-card">
+  list.innerHTML = filteredAssignments.map((item) => {
+    const due = getAssignmentDueState(item);
+    return `
+    <div class="assignment-card category-assignment-card ${escapeHTML(due.className)}">
       <div class="assignment-category-chip">${escapeHTML(workshopCategoryLabel(item.category))}</div>
       <div>
-        <strong>${escapeHTML(item.title)}</strong>
+        <div class="inline-status-row"><strong>${escapeHTML(item.title)}</strong><span class="due-badge ${escapeHTML(due.className)}">${escapeHTML(due.label)}</span></div>
         <p>${escapeHTML(item.description || "No description")}</p>
         <small>Due: ${escapeHTML(item.dueDate || "Not set")} · Max mark: ${escapeHTML(item.maxMark || 100)} · ${escapeHTML(item.allowedFileTypes || "Any file")}</small>
       </div>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
 }
 
 async function loadWorkshopTutorials() {
@@ -2071,6 +2197,18 @@ function buildWorkshopFallbackNotifications(source = {}) {
     });
   });
 
+  (source.announcements || source.notifications || []).forEach((notice) => {
+    if (notice.type && notice.type !== "announcement") return;
+    const stamp = normalizeNotificationTimestamp(notice);
+    if (stamp && now - stamp > maxAge) return;
+    items.push({
+      type: "announcement",
+      title: notice.title || "Workshop Announcement",
+      message: notice.message || "",
+      createdAt: stamp || now
+    });
+  });
+
   (source.attendance || source.classes || []).forEach((cls) => {
     const stamp = normalizeNotificationTimestamp(cls);
     if (stamp && now - stamp > maxAge) return;
@@ -2126,7 +2264,7 @@ function renderWorkshopNotifications(notifications = []) {
   }
   list.innerHTML = items.map((item) => `
     <div class="notification-item type-${escapeHTML(item.type || "info")}">
-      <span class="notification-type-icon">${item.type === "class" ? "📅" : item.type === "assignment" ? "📝" : "📢"}</span>
+      <span class="notification-type-icon">${item.type === "class" ? "📅" : item.type === "assignment" ? "📝" : item.type === "announcement" ? "📣" : "📢"}</span>
       <div>
         <strong>${escapeHTML(item.title || "Notification")}</strong>
         <small>${escapeHTML(item.message || "")} · ${escapeHTML(timeAgo(item.createdAt))}</small>
@@ -2532,6 +2670,45 @@ function updateAttendancePageControls() {
 }
 
 
+async function loadImageAsDataURL(paths = []) {
+  for (const src of paths) {
+    try {
+      const response = await fetch(src, { cache: "force-cache" });
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.warn("Attendance PDF image load failed", src, error.message);
+    }
+  }
+  return "";
+}
+
+function addAttendancePdfHeader(doc, { page, totalPages, logoData, calligraphyData }) {
+  const margin = 6;
+  if (logoData) {
+    try { doc.addImage(logoData, undefined, margin, 4.2, 14, 14); } catch (error) { console.warn("Logo add failed", error.message); }
+  }
+  if (calligraphyData) {
+    try { doc.addImage(calligraphyData, undefined, 247, 4.2, 42, 13); } catch (error) { console.warn("Calligraphy add failed", error.message); }
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(13.5);
+  doc.text("ADSA Media Lab", logoData ? 23 : margin, 9);
+  doc.setFontSize(10.5);
+  doc.text("Workshop Attendance Register", logoData ? 23 : margin, 14);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.setFontSize(7.2);
+  doc.text(`Page ${page + 1} / ${totalPages} · 30 class boxes per A4 landscape page`, logoData ? 23 : margin, 18.2);
+}
+
 function attendancePdfStatusLabel(status = "not-marked") {
   if (status === "present") return "P";
   if (status === "absent") return "A";
@@ -2571,7 +2748,7 @@ function buildAttendancePrintableHtml() {
         body { margin: 0; font-family: Arial, sans-serif; color: #111827; }
         .print-page { page-break-after: always; }
         .print-page:last-child { page-break-after: auto; }
-        h1 { margin: 0 0 1mm; font-size: 14px; line-height: 1.1; }
+        h1 { margin: 0 0 1mm; font-size: 14px; line-height: 1.1; } .pdf-top { display:flex; align-items:center; justify-content:space-between; gap:4mm; margin-bottom:2mm; } .pdf-top img { width:14mm; height:14mm; object-fit:contain; } .pdf-top .calligraphy { width:38mm; height:13mm; }
         p { margin: 0 0 2mm; font-size: 8px; color: #475569; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { border: 1px solid #94a3b8; text-align: center; padding: 0.6mm; font-size: 6.2px; height: 5.6mm; vertical-align: middle; }
@@ -2587,8 +2764,7 @@ function buildAttendancePrintableHtml() {
     <body>
       ${pages.map((pageClasses, page) => `
         <section class="print-page">
-          <h1>ADSA Workshop Attendance Register</h1>
-          <p>Page ${page + 1} / ${pages.length} · 30 class boxes per A4 landscape page</p>
+          <div class="pdf-top"><img src="assets/images/logo.png" onerror="this.src='assets/logo.png'" /><div><h1>ADSA Media Lab</h1><p>Workshop Attendance Register · Page ${page + 1} / ${pages.length} · 30 class boxes per A4 landscape page</p></div><img class="calligraphy" src="assets/images/calligraphy.png" onerror="this.style.display='none'" /></div>
           <table>
             <thead>
               <tr>
@@ -2615,7 +2791,7 @@ function buildAttendancePrintableHtml() {
   `;
 }
 
-function downloadAttendancePdf() {
+async function downloadAttendancePdf() {
   const { classes, students } = attendanceRegisterCache;
   if (!students.length) {
     alert("Attendance PDF ഉണ്ടാക്കാൻ students വേണം.");
@@ -2637,11 +2813,16 @@ function downloadAttendancePdf() {
     return;
   }
 
+  const [logoData, calligraphyData] = await Promise.all([
+    loadImageAsDataURL(["assets/images/logo.png", "assets/logo.png"]),
+    loadImageAsDataURL(["assets/images/calligraphy.png", "assets/calligraphy.png"])
+  ]);
+
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = 297;
   const pageH = 210;
   const margin = 6;
-  const titleH = 11;
+  const titleH = 17;
   const rowH = 5.45;
   const headerH = 11;
   const nameW = 38;
@@ -2653,14 +2834,7 @@ function downloadAttendancePdf() {
     if (page > 0) doc.addPage("a4", "landscape");
     let y = margin;
 
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(17, 24, 39);
-    doc.setFontSize(13);
-    doc.text("ADSA Workshop Attendance Register", margin, y + 4);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.setFontSize(7.5);
-    doc.text(`Page ${page + 1} / ${pages.length} · 30 class boxes per A4 landscape page`, margin, y + 8.8);
+    addAttendancePdfHeader(doc, { page, totalPages: pages.length, logoData, calligraphyData });
 
     y += titleH;
     doc.setFillColor(224, 242, 254);
@@ -3116,6 +3290,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const adminForm = $("#adminLoginForm");
   if (adminForm) adminForm.addEventListener("submit", adminLogin);
+
+  const announcementForm = $("#addAnnouncementForm");
+  if (announcementForm) announcementForm.addEventListener("submit", addAdminAnnouncement);
 
   const tutorialForm = $("#addTutorialForm");
   if (tutorialForm) tutorialForm.addEventListener("submit", addTutorial);

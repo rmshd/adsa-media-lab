@@ -4020,3 +4020,120 @@ button:active,
     grid-template-columns: 1fr;
   }
 }
+
+/* -------------------- Added: announcements, due warnings, approvals, download counts -------------------- */
+.inline-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-badge,
+.due-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.status-badge.status-approved,
+.work-approval-item.status-approved {
+  border-color: rgba(22, 163, 74, 0.2);
+}
+.status-badge.status-approved {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+.status-badge.status-pending {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+.status-badge.status-rejected {
+  background: rgba(239, 68, 68, 0.13);
+  color: #b91c1c;
+}
+.work-approval-item.status-pending {
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.9), #ffffff);
+}
+.work-approval-item.status-rejected {
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.9), #ffffff);
+}
+
+.due-badge.due-today {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.12);
+}
+.due-badge.due-soon {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.12);
+}
+.due-badge.due-normal {
+  background: rgba(54, 154, 242, 0.12);
+  color: var(--blue-dark);
+}
+.due-badge.due-overdue {
+  background: rgba(127, 29, 29, 0.12);
+  color: #7f1d1d;
+}
+.due-badge.due-none {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+}
+.category-assignment-card.due-today,
+.category-assignment-card.due-soon {
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.warning-btn {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid rgba(249, 115, 22, 0.22);
+}
+.success-btn {
+  background: #ecfdf5;
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.22);
+}
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.announcement-admin-item {
+  background: linear-gradient(135deg, rgba(231, 244, 255, 0.85), #ffffff);
+  border-style: solid;
+}
+.notification-item.type-announcement {
+  background: linear-gradient(135deg, rgba(231, 244, 255, 0.95), #ffffff);
+  border: 1px solid rgba(54, 154, 242, 0.16);
+}
+
+.asset-meta-line {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .inline-status-row {
+    align-items: flex-start;
+  }
+  .list-actions {
+    gap: 7px;
+  }
+  .status-badge,
+  .due-badge {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+}

@@ -25,6 +25,7 @@
       <a href="#asset-admin">Assets</a>
       <a href="#workshop-students-admin">Students</a>
       <a href="#assignment-admin">Assignments</a>
+      <a href="#announcement-admin">Announcements</a>
       <a href="#workshop-submissions-admin">Feedback</a>
       <a href="#attendance-admin">Attendance</a>
       <a href="#certificate-admin">Certificates</a>
@@ -62,6 +63,7 @@
             <div class="admin-notice-card"><span>Active Assignments</span><strong id="statAssignments">0</strong><small>Students can submit now</small></div>
             <div class="admin-notice-card"><span>Attendance Classes</span><strong id="statAttendanceClasses">0</strong><small>Admin-created class dates</small></div>
             <div class="admin-notice-card"><span>Certificates</span><strong id="statCertificates">0</strong><small>Eligible students</small></div>
+            <div class="admin-notice-card"><span>Announcements</span><strong id="statAnnouncements">0</strong><small>Visible for 24 hours</small></div>
           </div>
 
           <div class="admin-stats-grid" id="adminStatsGrid">
@@ -181,6 +183,35 @@
             </form>
 
             <div class="panel"><h4>Assignments</h4><div id="assignmentAdminList" class="list-box"><div class="list-item">Assignments ഇവിടെ കാണും.</div></div></div>
+            <form class="panel" id="addAnnouncementForm"><span id="announcement-admin" class="anchor-target"></span>
+              <h4>Workshop Announcement</h4>
+              <label>Title<input class="input" name="title" required placeholder="Tomorrow Photoshop class" /></label>
+              <label>Message<textarea class="input" name="message" rows="3" required placeholder="Write the update students should see in notification bell"></textarea></label>
+              <div class="form-row">
+                <label>Category
+                  <select class="input" name="category">
+                    <option>All Categories</option>
+                    <option>Creative Graphic Design</option>
+                    <option>Video Editing & Motion</option>
+                    <option>Web Coding & Development</option>
+                    <option>Photo & Video Production</option>
+                  </select>
+                </label>
+                <label>Type
+                  <select class="input" name="type">
+                    <option value="announcement">Announcement</option>
+                    <option value="class">Class Update</option>
+                    <option value="info">General Info</option>
+                  </select>
+                </label>
+              </div>
+              <button class="btn primary full" type="submit">Publish Announcement</button>
+              <p class="form-message" id="announcementAdminMessage"></p>
+              <p class="muted-note">Student notification bell-ൽ 24 hours മാത്രം കാണും.</p>
+            </form>
+
+            <div class="panel"><h4>Live Announcements</h4><div id="announcementAdminList" class="list-box"><div class="list-item">Announcements ഇവിടെ കാണും.</div></div></div>
+
 
             <div class="panel wide-panel submissions-control-panel"><span id="workshop-submissions-admin" class="anchor-target"></span>
               <div class="attendance-control-copy">
