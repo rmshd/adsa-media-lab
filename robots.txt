@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://adsa-media-lab.vercel.app/sitemap.xml
