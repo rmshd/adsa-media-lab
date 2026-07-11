@@ -4147,7 +4147,7 @@ body[data-page="workshop"] #workshopLoginForm:not(.hidden),
 body[data-page="workshop"] #workshopLoginForm.animate-on-scroll:not(.hidden),
 body[data-page="workshop"] .workshop-login-form:not(.hidden),
 body[data-page="workshop"] .glass-login-card:not(.hidden) {
-  opacity: 1 !important;
+  opacity: 100 !important;
   visibility: visible !important;
   transform: none !important;
   filter: none !important;
