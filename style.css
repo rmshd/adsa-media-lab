@@ -4137,3 +4137,46 @@ button:active,
     padding: 5px 8px;
   }
 }
+
+/* ================================
+   Workshop Login Visibility Fix
+   Use this to prevent the login form from becoming invisible on some browsers
+   ================================ */
+
+body[data-page="workshop"] #workshopLoginForm:not(.hidden),
+body[data-page="workshop"] #workshopLoginForm.animate-on-scroll:not(.hidden),
+body[data-page="workshop"] .workshop-login-form:not(.hidden),
+body[data-page="workshop"] .glass-login-card:not(.hidden) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  filter: none !important;
+  pointer-events: auto !important;
+}
+
+body[data-page="workshop"] .workshop-login-form {
+  width: 100%;
+  max-width: 460px;
+  justify-self: stretch;
+}
+
+body[data-page="workshop"] .workshop-login-shell,
+body[data-page="workshop"] .premium-workshop-shell {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 28px;
+  align-items: center;
+}
+
+@media (max-width: 880px) {
+  body[data-page="workshop"] .workshop-login-shell,
+  body[data-page="workshop"] .premium-workshop-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-page="workshop"] .workshop-login-form {
+    max-width: none;
+    width: 100%;
+    justify-self: stretch;
+  }
+}
