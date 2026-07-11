@@ -4147,7 +4147,7 @@ body[data-page="workshop"] #workshopLoginForm:not(.hidden),
 body[data-page="workshop"] #workshopLoginForm.animate-on-scroll:not(.hidden),
 body[data-page="workshop"] .workshop-login-form:not(.hidden),
 body[data-page="workshop"] .glass-login-card:not(.hidden) {
-  opacity: 100 !important;
+  opacity: 1 !important;
   visibility: visible !important;
   transform: none !important;
   filter: none !important;
@@ -4179,4 +4179,84 @@ body[data-page="workshop"] .premium-workshop-shell {
     width: 100%;
     justify-self: stretch;
   }
+}
+
+/* =========================================================
+   ADSA NO-LOAD-ANIMATION MODE
+   Purpose: remove site loading / scroll reveal animations and
+   prevent blank or invisible sections/forms on slower browsers.
+   Paste kept at the bottom so it safely overrides old animation CSS.
+   ========================================================= */
+
+html {
+  scroll-behavior: auto !important;
+}
+
+*,
+*::before,
+*::after {
+  animation: none !important;
+  animation-delay: 0s !important;
+  animation-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+.reveal,
+.reveal-left,
+.reveal-right,
+.reveal-card,
+.animate-on-scroll,
+.fade-in,
+.slide-up,
+.slide-down,
+.slide-left,
+.slide-right,
+.scale-in,
+.blur-in,
+.stagger-item,
+.is-visible,
+.visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  filter: none !important;
+  pointer-events: auto !important;
+}
+
+/* Keep important sections visible even if JavaScript/IntersectionObserver fails */
+.hero,
+.section,
+.section-panel,
+.hero-shell,
+.hero-copy,
+.hero-visual,
+.student-works-board,
+.tutorials-panel,
+.work-upload-panel,
+.admin-panel-shell,
+.form-card,
+.panel,
+.workshop-login-shell,
+.premium-workshop-shell,
+.workshop-login-form,
+.glass-login-card {
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+}
+
+/* Workshop login must always be visible before login */
+body[data-page="workshop"] #workshopLoginForm:not(.hidden),
+body[data-page="workshop"] .workshop-login-form:not(.hidden),
+body[data-page="workshop"] .glass-login-card:not(.hidden) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  filter: none !important;
+  pointer-events: auto !important;
+}
+
+/* Preserve intentional hidden state for modals/dashboards before opening */
+.hidden {
+  display: none !important;
 }
