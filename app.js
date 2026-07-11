@@ -2654,6 +2654,7 @@ function renderAdminWorkshopSubmissionModalList() {
           </div>
           <span>${escapeHTML(item.studentId || "")} · ${escapeHTML(item.studentName || "Student")} · ${item.size ? formatSize(item.size) : "File"}</span>
           <small>${escapeHTML(item.originalName || "File")} · ${formatTime(item.createdAt)}</small>
+          <small class="gallery-publish-status ${item.publishedToGallery ? "is-published" : "is-pending"}">Gallery: ${item.publishedToGallery ? "Published to Student Works" : "Not published"}</small>
           <div class="feedback-form-grid">
             <label>Mark
               <input class="input mini-input" type="number" min="0" max="${escapeHTML(item.maxMark || 100)}" value="${escapeHTML(item.mark ?? "")}" data-feedback-mark="${item.id}" placeholder="0-${escapeHTML(item.maxMark || 100)}">
@@ -2672,6 +2673,7 @@ function renderAdminWorkshopSubmissionModalList() {
           <a class="btn mini blue-btn" href="${PRINT_API_BASE}/api/workshop/submission-file/${item.id}" target="_blank" rel="noopener">Open</a>
           <a class="btn mini soft" href="${PRINT_API_BASE}/api/workshop/download-submission/${item.id}" target="_blank" rel="noopener">Download</a>
           <button class="btn mini primary" type="button" data-admin-save-feedback="${item.id}">Save Feedback</button>
+          <button class="btn mini ${item.publishedToGallery ? "warning-btn" : "success-btn"}" type="button" data-admin-publish-submission="${item.id}" data-published="${item.publishedToGallery ? "false" : "true"}">${item.publishedToGallery ? "Unpublish" : "Publish to Works"}</button>
           <button class="btn mini danger-btn" type="button" data-admin-delete-workshop-submission="${item.id}">Delete</button>
         </div>
       </div>
@@ -3240,6 +3242,26 @@ async function handleWorkshopAdminActions(event) {
       body: JSON.stringify({ mark, reviewStatus, feedback })
     });
     alert("Feedback saved.");
+    await loadAdminWorkshopSubmissions();
+    renderAdminWorkshopSubmissionModalList();
+    await loadAdminDashboardStats();
+    return;
+  }
+
+  const publishSubmissionBtn = event.target.closest?.("[data-admin-publish-submission]");
+  if (publishSubmissionBtn) {
+    const id = publishSubmissionBtn.getAttribute("data-admin-publish-submission");
+    const published = publishSubmissionBtn.getAttribute("data-published") === "true";
+    const confirmText = published
+      ? "ഈ workshop work main page Student Works section-ൽ publish ചെയ്യണോ?"
+      : "ഈ work main page Student Works section-ൽ നിന്നും remove ചെയ്യണോ?";
+    if (!confirm(confirmText)) return;
+    await adminFetch(`/api/admin/workshop-submissions/${id}/publish`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ published })
+    });
+    alert(published ? "Main page Student Works section-ലേക്ക് publish ചെയ്തു." : "Main page Student Works section-ൽ നിന്ന് remove ചെയ്തു.");
     await loadAdminWorkshopSubmissions();
     renderAdminWorkshopSubmissionModalList();
     await loadAdminDashboardStats();

@@ -4283,3 +4283,25 @@ body[data-page="workshop"] .glass-login-card:not(.hidden) {
 .hidden {
   display: none !important;
 }
+
+/* Workshop submission → Main Student Works publish status */
+.gallery-publish-status {
+  display: inline-flex !important;
+  width: fit-content;
+  margin-top: 8px !important;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.gallery-publish-status.is-published {
+  background: #ecfdf5;
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.22);
+}
+.gallery-publish-status.is-pending {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.18);
+}
