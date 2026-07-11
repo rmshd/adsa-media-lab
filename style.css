@@ -4138,46 +4138,69 @@ button:active,
   }
 }
 
-/* ================================
-   Workshop Login Visibility Fix
-   Use this to prevent the login form from becoming invisible on some browsers
-   ================================ */
 
-body[data-page="workshop"] #workshopLoginForm:not(.hidden),
-body[data-page="workshop"] #workshopLoginForm.animate-on-scroll:not(.hidden),
-body[data-page="workshop"] .workshop-login-form:not(.hidden),
-body[data-page="workshop"] .glass-login-card:not(.hidden) {
-  opacity: 1 !important;
-  visibility: visible !important;
-  transform: none !important;
-  filter: none !important;
-  pointer-events: auto !important;
-}
-
-body[data-page="workshop"] .workshop-login-form {
-  width: 100%;
-  max-width: 460px;
-  justify-self: stretch;
-}
-
-body[data-page="workshop"] .workshop-login-shell,
-body[data-page="workshop"] .premium-workshop-shell {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-  gap: 28px;
+/* =========================================================
+   Tutorial Folder UI Update
+   ========================================================= */
+.folder-view-head {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
 }
-
-@media (max-width: 880px) {
-  body[data-page="workshop"] .workshop-login-shell,
-  body[data-page="workshop"] .premium-workshop-shell {
-    grid-template-columns: 1fr !important;
+.folder-view-head strong,
+.folder-view-head small,
+.folder-view-head div {
+  display: block;
+}
+.folder-view-head small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+.admin-folder-grid,
+.workshop-tutorial-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.admin-tutorial-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.admin-tutorial-card .tutorial-thumb {
+  height: 150px;
+}
+.admin-tutorial-access-folder em {
+  display: block;
+  margin-top: 5px;
+  color: var(--soft-text);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+.workshop-folder-head {
+  grid-column: 1 / -1;
+}
+.workshop-tutorial-folder-grid {
+  grid-column: 1 / -1;
+}
+@media (max-width: 760px) {
+  .folder-view-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
-
-  body[data-page="workshop"] .workshop-login-form {
-    max-width: none;
-    width: 100%;
-    justify-self: stretch;
+  .admin-folder-grid,
+  .workshop-tutorial-folder-grid,
+  .admin-tutorial-card-grid {
+    grid-template-columns: 1fr;
   }
 }
 

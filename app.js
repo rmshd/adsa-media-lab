@@ -831,6 +831,33 @@ function setupWorkViewer() {
 
 // -------------------- TUTORIALS --------------------
 let tutorialCache = [];
+let adminTutorialCache = [];
+let adminTutorialView = { access: "", category: "" };
+let workshopTutorialCache = [];
+let workshopTutorialView = { category: "" };
+
+function tutorialAccessLabel(access = "public") {
+  if (access === "workshop") return "Workshop Advanced Tutorials";
+  return "Common Tutorials";
+}
+
+function tutorialAccessNote(access = "public") {
+  if (access === "workshop") return "Only workshop student portal";
+  return "Only main public website";
+}
+
+function tutorialAccessIcon(access = "public") {
+  if (access === "workshop") return "🎓";
+  return "🌐";
+}
+
+function countBy(items = [], getKey = () => "Other") {
+  return items.reduce((acc, item) => {
+    const key = getKey(item) || "Other";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
 
 function youtubeIdFromUrl(url) {
   if (!url) return "";
@@ -1602,30 +1629,103 @@ async function addTutorial(event) {
   }
 }
 
+function renderAdminTutorialFolders() {
+  const box = $("#tutorialAdminList");
+  if (!box) return;
+
+  const tutorials = adminTutorialCache.filter((item) => item.status !== "deleted");
+  if (!tutorials.length) {
+    box.innerHTML = `<div class="list-item">Tutorial links ഒന്നുമില്ല.</div>`;
+    return;
+  }
+
+  const selectedAccess = adminTutorialView.access;
+  const selectedCategory = adminTutorialView.category;
+
+  if (!selectedAccess) {
+    const grouped = countBy(tutorials, (item) => item.access === "workshop" ? "workshop" : "public");
+    const order = ["public", "workshop"];
+    box.innerHTML = `
+      <div class="folder-view-head">
+        <strong>Tutorial folders</strong>
+        <small>Common and Workshop tutorials separate folders ആയി കാണിക്കും.</small>
+      </div>
+      <div class="resource-folder-grid admin-folder-grid">
+        ${order.map((access, index) => `
+          <button class="resource-folder-card tutorial-folder-card admin-tutorial-access-folder reveal-card is-visible" type="button" data-admin-tutorial-access="${escapeHTML(access)}" style="--folder-index:${index}">
+            <span class="folder-3d-icon">${tutorialAccessIcon(access)}</span>
+            <span class="folder-copy">
+              <strong>${escapeHTML(tutorialAccessLabel(access))}</strong>
+              <small>${grouped[access] || 0} tutorial${(grouped[access] || 0) === 1 ? "" : "s"}</small>
+              <em>${escapeHTML(tutorialAccessNote(access))}</em>
+            </span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+    return;
+  }
+
+  const accessTutorials = tutorials.filter((item) => (selectedAccess === "workshop" ? item.access === "workshop" : item.access !== "workshop"));
+
+  if (!selectedCategory) {
+    const grouped = countBy(accessTutorials, (item) => item.category || "Other");
+    const categories = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+    box.innerHTML = `
+      <div class="folder-view-head">
+        <button class="btn mini soft" type="button" data-admin-back-tutorial-root>← Back</button>
+        <div><strong>${escapeHTML(tutorialAccessLabel(selectedAccess))}</strong><small>${accessTutorials.length} tutorials</small></div>
+      </div>
+      ${categories.length ? `<div class="resource-folder-grid admin-folder-grid">
+        ${categories.map((category, index) => `
+          <button class="resource-folder-card tutorial-folder-card admin-tutorial-category-folder reveal-card is-visible" type="button" data-admin-tutorial-category="${escapeHTML(category)}" style="--folder-index:${index}">
+            <span class="folder-3d-icon">${tutorialCategoryIcon(category)}</span>
+            <span class="folder-copy"><strong>${escapeHTML(category)}</strong><small>${grouped[category]} tutorial${grouped[category] === 1 ? "" : "s"}</small></span>
+          </button>
+        `).join("")}
+      </div>` : `<div class="list-item">ഈ folder-ൽ tutorials ഇല്ല.</div>`}
+    `;
+    return;
+  }
+
+  const categoryTutorials = accessTutorials.filter((item) => (item.category || "Other") === selectedCategory);
+  box.innerHTML = `
+    <div class="folder-view-head">
+      <button class="btn mini soft" type="button" data-admin-back-tutorial-categories>← Categories</button>
+      <div><strong>${escapeHTML(selectedCategory)}</strong><small>${categoryTutorials.length} tutorials</small></div>
+    </div>
+    <div class="admin-tutorial-card-grid">
+      ${categoryTutorials.map((tutorial) => {
+        const thumb = tutorial.thumbnail || thumbnailFromYoutube(tutorial.youtubeLink);
+        return `
+          <article class="tutorial-card admin-tutorial-card reveal-card is-visible">
+            <div class="tutorial-thumb image-thumb">
+              ${thumb ? `<img src="${escapeHTML(thumb)}" alt="${escapeHTML(tutorial.title || "Tutorial")} thumbnail" loading="lazy">` : `<span>YT</span>`}
+            </div>
+            <div class="tutorial-body">
+              <div class="tag-pair"><span>${escapeHTML(tutorial.level || "Beginner")}</span><span>${escapeHTML(tutorial.language || "Malayalam")}</span></div>
+              <h3>${escapeHTML(tutorial.title || "Tutorial")}</h3>
+              <p>${escapeHTML(tutorialAccessLabel(tutorial.access))}</p>
+              <div class="list-actions">
+                <a class="btn mini blue-btn" href="${escapeHTML(tutorial.youtubeLink || "#")}" target="_blank" rel="noopener">Watch</a>
+                <button class="btn mini danger-btn" type="button" data-admin-delete-tutorial="${escapeHTML(tutorial.id)}">Delete</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 async function loadAdminTutorials() {
   const box = $("#tutorialAdminList");
   if (!box) return;
   try {
-    box.innerHTML = `<div class="list-item">Loading tutorials...</div>`;
+    box.innerHTML = `<div class="list-item">Loading tutorial folders...</div>`;
     const result = await adminFetch("/api/admin/tutorials");
-    const tutorials = result.tutorials || [];
-    if (!tutorials.length) {
-      box.innerHTML = `<div class="list-item">Tutorial links ഒന്നുമില്ല.</div>`;
-      return;
-    }
-    box.innerHTML = tutorials.map((tutorial) => `
-      <div class="list-item admin-file-item">
-        <div>
-          <strong>${escapeHTML(tutorial.title)}</strong>
-          <span>${escapeHTML(tutorial.category)} · ${escapeHTML(tutorial.level)} · ${escapeHTML(tutorial.language)} · ${escapeHTML(tutorial.access)}</span>
-          <small>${escapeHTML(tutorial.youtubeLink)}</small>
-        </div>
-        <div class="list-actions">
-          <a class="btn mini blue-btn" href="${escapeHTML(tutorial.youtubeLink)}" target="_blank" rel="noopener">Watch</a>
-          <button class="btn mini danger-btn" type="button" data-admin-delete-tutorial="${tutorial.id}">Delete</button>
-        </div>
-      </div>
-    `).join("");
+    adminTutorialCache = result.tutorials || [];
+    renderAdminTutorialFolders();
   } catch (error) {
     console.error(error);
     box.innerHTML = `<div class="list-item">Tutorials load failed: ${escapeHTML(error.message)}</div>`;
@@ -2007,30 +2107,72 @@ function renderWorkshopAssignments(assignments = []) {
   }).join("");
 }
 
+function renderWorkshopTutorialFolders() {
+  const box = $("#workshopTutorialList");
+  if (!box) return;
+
+  // Student portal: only tutorials added as Workshop Advanced Tutorial.
+  const tutorials = workshopTutorialCache.filter((item) => item.access === "workshop" || !item.access);
+  const selectedCategory = workshopTutorialView.category;
+
+  if (!tutorials.length) {
+    box.innerHTML = `<div class="works-loading">Workshop Advanced tutorials admin add ചെയ്തിട്ടില്ല.</div>`;
+    return;
+  }
+
+  if (!selectedCategory) {
+    const grouped = countBy(tutorials, (item) => item.category || "Other");
+    const categories = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+    box.innerHTML = `
+      <div class="folder-view-head workshop-folder-head">
+        <strong>Workshop Tutorial Folders</strong>
+        <small>Admin added Workshop Advanced tutorials മാത്രം ഇവിടെ കാണും.</small>
+      </div>
+      <div class="resource-folder-grid workshop-tutorial-folder-grid">
+        ${categories.map((category, index) => `
+          <button class="resource-folder-card tutorial-folder-card workshop-tutorial-folder reveal-card is-visible" type="button" data-workshop-tutorial-folder="${escapeHTML(category)}" style="--folder-index:${index}">
+            <span class="folder-3d-icon">${tutorialCategoryIcon(category)}</span>
+            <span class="folder-copy"><strong>${escapeHTML(category)}</strong><small>${grouped[category]} tutorial${grouped[category] === 1 ? "" : "s"}</small></span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+    return;
+  }
+
+  const filtered = tutorials.filter((item) => (item.category || "Other") === selectedCategory);
+  box.innerHTML = `
+    <div class="folder-view-head workshop-folder-head">
+      <button class="btn mini soft" type="button" data-back-workshop-tutorial-folders>← Back to folders</button>
+      <div><strong>${escapeHTML(selectedCategory)}</strong><small>${filtered.length} tutorial${filtered.length === 1 ? "" : "s"}</small></div>
+    </div>
+    <div class="tutorial-card-grid compact-tutorial-grid">
+      ${filtered.map((tutorial) => `
+        <article class="tutorial-card reveal-card is-visible">
+          <div class="tutorial-thumb image-thumb">
+            ${tutorial.thumbnail ? `<img src="${escapeHTML(tutorial.thumbnail)}" alt="${escapeHTML(tutorial.title || "Tutorial")}" loading="lazy">` : `<span>YT</span>`}
+          </div>
+          <div class="tutorial-body">
+            <div class="tag-pair"><span>${escapeHTML(tutorial.category || "Workshop")}</span><span>${escapeHTML(tutorial.level || "Learning")}</span></div>
+            <h3>${escapeHTML(tutorial.title || "Tutorial")}</h3>
+            <p>${escapeHTML(tutorial.language || "Malayalam")}</p>
+            <a class="btn mini blue-btn" href="${escapeHTML(tutorial.youtubeLink || "#")}" target="_blank" rel="noopener">Watch</a>
+          </div>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
 async function loadWorkshopTutorials() {
   const box = $("#workshopTutorialList");
   if (!box) return;
   try {
-    box.innerHTML = `<div class="works-loading">Loading tutorials...</div>`;
+    box.innerHTML = `<div class="works-loading">Loading tutorial folders...</div>`;
     const result = await workshopFetch("/api/workshop/tutorials");
-    const tutorials = result.tutorials || [];
-    if (!tutorials.length) {
-      box.innerHTML = `<div class="works-loading">Workshop tutorials admin add ചെയ്തിട്ടില്ല.</div>`;
-      return;
-    }
-    box.innerHTML = tutorials.map((tutorial) => `
-      <article class="tutorial-card reveal-card is-visible">
-        <div class="tutorial-thumb image-thumb">
-          ${tutorial.thumbnail ? `<img src="${escapeHTML(tutorial.thumbnail)}" alt="${escapeHTML(tutorial.title || "Tutorial")}" loading="lazy">` : `<span>YT</span>`}
-        </div>
-        <div class="tutorial-body">
-          <div class="tag-pair"><span>${escapeHTML(tutorial.category || "Workshop")}</span><span>${escapeHTML(tutorial.level || "Learning")}</span></div>
-          <h3>${escapeHTML(tutorial.title || "Tutorial")}</h3>
-          <p>${escapeHTML(tutorial.language || "Malayalam")}</p>
-          <a class="btn mini blue-btn" href="${escapeHTML(tutorial.youtubeLink || "#")}" target="_blank" rel="noopener">Watch</a>
-        </div>
-      </article>
-    `).join("");
+    workshopTutorialCache = (result.tutorials || []).filter((item) => item.access === "workshop" || !item.access);
+    workshopTutorialView.category = "";
+    renderWorkshopTutorialFolders();
   } catch (error) {
     console.error(error);
     box.innerHTML = `<div class="works-loading">Tutorials load failed: ${escapeHTML(error.message)}</div>`;
@@ -3368,6 +3510,57 @@ window.addEventListener("DOMContentLoaded", () => {
       if (select) select.value = "all";
       if (search) search.value = "";
       renderPublicTutorials();
+      return;
+    }
+
+    const adminTutorialAccess = event.target.closest?.("[data-admin-tutorial-access]");
+    if (adminTutorialAccess) {
+      event.preventDefault();
+      adminTutorialView.access = adminTutorialAccess.getAttribute("data-admin-tutorial-access") || "";
+      adminTutorialView.category = "";
+      renderAdminTutorialFolders();
+      return;
+    }
+
+    const adminTutorialCategory = event.target.closest?.("[data-admin-tutorial-category]");
+    if (adminTutorialCategory) {
+      event.preventDefault();
+      adminTutorialView.category = adminTutorialCategory.getAttribute("data-admin-tutorial-category") || "";
+      renderAdminTutorialFolders();
+      return;
+    }
+
+    const adminTutorialRootBack = event.target.closest?.("[data-admin-back-tutorial-root]");
+    if (adminTutorialRootBack) {
+      event.preventDefault();
+      adminTutorialView.access = "";
+      adminTutorialView.category = "";
+      renderAdminTutorialFolders();
+      return;
+    }
+
+    const adminTutorialCategoryBack = event.target.closest?.("[data-admin-back-tutorial-categories]");
+    if (adminTutorialCategoryBack) {
+      event.preventDefault();
+      adminTutorialView.category = "";
+      renderAdminTutorialFolders();
+      return;
+    }
+
+    const workshopTutorialFolder = event.target.closest?.("[data-workshop-tutorial-folder]");
+    if (workshopTutorialFolder) {
+      event.preventDefault();
+      workshopTutorialView.category = workshopTutorialFolder.getAttribute("data-workshop-tutorial-folder") || "";
+      renderWorkshopTutorialFolders();
+      return;
+    }
+
+    const workshopTutorialBack = event.target.closest?.("[data-back-workshop-tutorial-folders]");
+    if (workshopTutorialBack) {
+      event.preventDefault();
+      workshopTutorialView.category = "";
+      renderWorkshopTutorialFolders();
+      return;
     }
   });
 
